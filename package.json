@@ -33,6 +33,10 @@
   },
   "homepage": "https://github.com/whitebolt/websocket-express#readme",
   "dependencies": {
+    "content-disposition": "^0.5.2",
+    "depd": "^1.1.1",
+    "mime": "^1.3.6",
+    "vary": "^1.1.1",
     "ws": "^3.1.0"
   },
   "devDependencies": {
