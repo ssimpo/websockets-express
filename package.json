@@ -1,0 +1,43 @@
+{
+  "name": "websocket-express",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "engines": ">=6.0.0",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/whitebolt/websocket-express.git"
+  },
+  "keywords": [
+    "Express",
+    "Websockets"
+  ],
+  "author": {
+    "email": "hello@whitebolt.net",
+    "name": "Whitebolt"
+  },
+  "contributors": [
+    {
+      "email": "stephen@whitebolt.net",
+      "name": "Stephen Simpson"
+    },
+    {
+      "email": "kris@whitebolt.net",
+      "name": "Kristjan Allikas"
+    }
+  ],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/whitebolt/websocket-express/issues"
+  },
+  "homepage": "https://github.com/whitebolt/websocket-express#readme",
+  "dependencies": {
+    "ws": "^3.1.0"
+  },
+  "devDependencies": {
+    "chai": "^3.3.0",
+    "chai-as-promised": "^6.0.0",
+    "mocha": "^2.3.3"
+  }
+}
