@@ -4,11 +4,11 @@
   "description": "",
   "main": "index.js",
   "engines": ">=6.0.0",
-  "private": true,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/whitebolt/websocket-express.git"
+    "url": "git+https://github.com/ssimpo/websockets-express.git"
   },
+  "private": true,
   "keywords": [
     "Express",
     "Websockets"
@@ -29,13 +29,12 @@
   ],
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/whitebolt/websocket-express/issues"
+    "url": "https://github.com/ssimpo/websockets-express/issues"
   },
-  "homepage": "https://github.com/whitebolt/websocket-express#readme",
+  "homepage": "https://github.com/ssimpo/websockets-express#readme",
   "dependencies": {
     "content-disposition": "^0.5.2",
     "depd": "^1.1.1",
-    "express-websocket": "https://github.com/ssimpo/express-websocket.git",
     "mime": "^1.3.6",
     "type-is": "^1.6.15",
     "vary": "^1.1.1",
