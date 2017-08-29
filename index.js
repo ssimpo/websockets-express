@@ -1,32 +1,33 @@
 'use strict';
 
-const WebSocket = require('ws');
-const http = require('http');
+const ws = require('ws');
+const handleUpgrade = require('./lib/expressWebsocket');
 const Request = require('./lib/request');
 const Response = require('./lib/response');
 
-function upgrade(server, app) {
-	let wss = new WebSocket.Server({
-		server,
-		perMessageDeflate: false
-	});
+function websocketMiddleware(req, res, next) {
+  console.log(req.path, Object.keys(req.headers).sort().join(', ')+'\n\n');
+  if (!req.headers || req.headers.upgrade === undefined || req.headers.upgrade.toLowerCase() !== 'websocket') return next();
 
-	wss.on('connection', (ws, req)=>{
-		console.log('connected');
+  res.websocket((ws, app)=>{
+    ws.on('message', rawData=>{
+      const message = JSON.parse(rawData);
 
-		ws.on('message', rawData=>{
-			const message = JSON.parse(rawData);
+      console.log("Sending websocket message through express", message.path);
 
-			app.handle(new Request(req, message), new Response(req));
+      let _req = new Request(req, message);
+      let _res = new Response(_req);
 
-			console.log('MESSAGE', message.type);
-		});
-	});
-
-	return wss;
+      app.handle(_req, _res);
+    });
+  });
 }
 
+function upgrade(server, app) {
+  const wss = new ws.Server({ noServer: true });
+  server.on('upgrade', handleUpgrade(app, wss));
+}
 
 module.exports = {
-	upgrade
-};
+  upgrade, websocketMiddleware
+}
