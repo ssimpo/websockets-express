@@ -43,6 +43,33 @@
   "devDependencies": {
     "chai": "^3.3.0",
     "chai-as-promised": "^6.0.0",
-    "mocha": "^2.3.3"
+    "mocha": "^2.3.3",
+    "babel-preset-es2015": "*",
+    "gulp": "*",
+    "gulp-angular-embed-templates": "*",
+    "gulp-babel": "*",
+    "gulp-concat": "*",
+    "gulp-rename": "^1.2.2",
+    "gulp-sourcemaps": "*",
+    "gulp-uglify": "*",
+    "gulp-util": "*"
+  },
+  "babel": {
+    "presets": [
+      "es2015"
+    ]
+  },
+  "gulp": {
+    "name": "index",
+    "source": {
+      "js": [
+        "./src/index.js"
+      ],
+      "jsTemplates": [
+      ]
+    },
+    "dest": {
+      "js": "./scripts"
+    }
   }
 }
