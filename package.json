@@ -33,6 +33,8 @@
   },
   "homepage": "https://github.com/ssimpo/websockets-express#readme",
   "dependencies": {
+    "bson": "^1.0.4",
+    "bson-buffer": "^1.0.2",
     "content-disposition": "^0.5.2",
     "depd": "^1.1.1",
     "mime": "^1.3.6",
@@ -41,10 +43,9 @@
     "ws": "^3.1.0"
   },
   "devDependencies": {
+    "babel-preset-es2015": "*",
     "chai": "^3.3.0",
     "chai-as-promised": "^6.0.0",
-    "mocha": "^2.3.3",
-    "babel-preset-es2015": "*",
     "gulp": "*",
     "gulp-angular-embed-templates": "*",
     "gulp-babel": "*",
@@ -52,7 +53,8 @@
     "gulp-rename": "^1.2.2",
     "gulp-sourcemaps": "*",
     "gulp-uglify": "*",
-    "gulp-util": "*"
+    "gulp-util": "*",
+    "mocha": "^2.3.3"
   },
   "babel": {
     "presets": [
@@ -65,8 +67,7 @@
       "js": [
         "./src/index.js"
       ],
-      "jsTemplates": [
-      ]
+      "jsTemplates": []
     },
     "dest": {
       "js": "./scripts"

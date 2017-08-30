@@ -1,6 +1,7 @@
 (function(global, $){
 	'use strict';
 
+	let BSON, bson;
 	let ready = false;
 
 	const afterReady = new Set();
@@ -11,15 +12,26 @@
 	const acknowledgements = new Map();
 	const sendQueue = new Map();
 	const sockets = new Map();
+	const parsers = new Map();
 
 
 	function init() {
-		global.document.addEventListener("DOMContentLoaded", onReady);
+		if (global.require && !global.define) {
+			BSON = require('bson');
+			bson = new BSON.BSON();
+			global.document.addEventListener("DOMContentLoaded", onReady);
+		} else if (global.define && (global.require || global.requireJs)) {
+			(requireJs || require)(['bson'], BSON=>{
+				BSON = require('bson');
+				bson = new BSON.BSON();
+				global.document.addEventListener("DOMContentLoaded", onReady);
+			});
+		}
 
 		const wss = new WebSocketService();
 		if ($) $.websocket = wss;
 		if (global.angular) global.angular.module("websocket-express", []).factory("$websocket", wss);
-		if (typeof global.define === 'function') global.define(wss);
+		if (typeof global.define === "function") global.define(wss);
 		if (global.module && global.module.exports) global.module.exports(wss);
 	}
 
@@ -101,17 +113,17 @@
 		const _sendQueue = sendQueue.get(socketId);
 		const ws = socketReady(socketId);
 		if (_sendQueue && ws) {
-			_sendQueue.forEach(message=>ws.send(message));
+			_sendQueue.forEach(messageFunction=>ws.send(messageFunction()));
 			_sendQueue.clear();
 			sendQueue.delete(socketId);
 		}
 	}
 
-	function send(message, socketId=defaultSocketId) {
+	function send(messageFunction, socketId=defaultSocketId) {
 		const ws = socketReady(socketId);
-		if (ws) return ws.send(message);
+		if (ws) return ws.send(messageFunction());
 		if (!sendQueue.has(socketId)) sendQueue.set(socketId, new Set());
-		sendQueue.get(socketId).add(message);
+		sendQueue.get(socketId).add(messageFunction);
 	}
 
 	function getCallbacks(type, socketId=defaultSocketId) {
@@ -145,21 +157,32 @@
 
 		ws.addEventListener("open", ()=>{
 			ws.addEventListener("message", messageEvent=>{
-				let message = JSON.parse(messageEvent.data);
-				if (!message.id) {
-					if (callbacks.has(message.type)) {
-						callbacks.get(type).forEach(callbacks=>callback(message.data));
-					}
-				} else {
-					if (acknowledgements.has(message.id)) {
-						let acknowledgement = acknowledgements.get(message.id);
-						if (message.type === 'error') {
-							acknowledgement(message.data, null);
-						} else {
-							acknowledgement(null, message.data);
+				const respond = (message)=>{
+					if (!message.id) {
+						if (callbacks.has(message.type)) {
+							callbacks.get(type).forEach(callbacks=>callback(message.data));
 						}
-						acknowledgements.delete(message.id);
+					} else {
+						if (acknowledgements.has(message.id)) {
+							let acknowledgement = acknowledgements.get(message.id);
+							if (message.type === 'error') {
+								acknowledgement(message.data, null);
+							} else {
+								acknowledgement(null, message.data);
+							}
+							acknowledgements.delete(message.id);
+						}
 					}
+				};
+
+				if (typeof messageEvent.data === 'string') {
+					respond(JSON.parse(messageEvent.data));
+				} else if (messageEvent.data instanceof Blob) {
+					let reader = new FileReader();
+					reader.onload = function() {
+						respond(bson.deserialize(new Uint8Array(this.result)));
+					};
+					reader.readAsArrayBuffer(messageEvent.data);
 				}
 			});
 
@@ -172,6 +195,23 @@
 	class WebSocketService {
 		constructor() {
 			if (!WebSocketServiceInstance) WebSocketServiceInstance = this;
+
+			this.addParser("json", data=>{
+				try {
+					return JSON.stringify(data);
+				} catch(err) {
+					throw new TypeError(`Could not convert data to json for sending`);
+				}
+			});
+
+			this.addParser("bson", data=>{
+				try {
+					return bson.serialize(data);
+				} catch(err) {
+					throw new TypeError(`Could not convert data to bson for sending`);
+				}
+			});
+
 			return WebSocketServiceInstance;
 		}
 
@@ -193,13 +233,18 @@
 			callbacks.forEach(callbacks=>removeCallback(callbacks, callback));
 		}
 
-		request(data, socketId=defaultSocketId) {
+		request(data, socketId=defaultSocketId, type='json') {
 			data.method = data.method || "get";
 
 			return new Promise((resolve, reject)=>{
 				let id = randomString();
 				acknowledgements.set(id, createAcknowledge(resolve, reject));
-				send(JSON.stringify({type:"request", id, data}), socketId);
+				let message = {type:"request", id, data};
+				let messageFunction = ()=>{
+					if (parsers.has(type)) return parsers.get(type)(message);
+					throw new TypeError(`No parser for type ${type}`);
+				};
+				send(messageFunction, socketId);
 			});
 		}
 
@@ -208,7 +253,19 @@
 		}
 
 		removeEndpoint(id, url) {
-			endpoints.delete(id);
+			return endpoints.delete(id);
+		}
+
+		addParser(type, parser) {
+			parsers.set(type, parser);
+		}
+
+		removeParser(type, parser) {
+			return parsers.delete(type);
+		}
+
+		get defaultSocketId() {
+			return defaultSocketId;
 		}
 
 		get [Symbol.toStringTag]() {

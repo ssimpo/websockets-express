@@ -456,6 +456,14 @@ braces@^1.8.2:
     preserve "^0.2.0"
     repeat-element "^1.1.2"
 
+bson-buffer@^1.0.2:
+  version "1.0.2"
+  resolved "https://registry.yarnpkg.com/bson-buffer/-/bson-buffer-1.0.2.tgz#ba57704daa81649074632c0fa70f45ef60dfc971"
+
+bson@^1.0.4:
+  version "1.0.4"
+  resolved "https://registry.yarnpkg.com/bson/-/bson-1.0.4.tgz#93c10d39eaa5b58415cbc4052f3e53e562b0b72c"
+
 chai-as-promised@^6.0.0:
   version "6.0.0"
   resolved "https://registry.yarnpkg.com/chai-as-promised/-/chai-as-promised-6.0.0.tgz#1a02a433a6f24dafac63b9c96fa1684db1aa8da6"
