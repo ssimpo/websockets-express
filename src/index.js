@@ -82,7 +82,11 @@
 	function createAcknowledge(resolve, reject) {
 		return (err, response)=>{
 			if (err) return reject(err);
-			if ((response.status || 200) >= 400) return reject(err);
+			if ((response.status || 200) >= 400) {
+				if (err) return reject(err);
+				let errMessage = (response.statusMessage || "").trim();
+				return reject(errMessage);
+			}
 			return resolve(response);
 		};
 	}
