@@ -12,6 +12,26 @@
 	const sendQueue = new Map();
 	const sockets = new Map();
 
+
+	function init() {
+		global.document.addEventListener("DOMContentLoaded", onReady);
+
+		const websocketService = construct();
+		if ($) $.websocket = websocketService;
+		if (global.angular) global.angular.module("websocket-express", []).factory("$websocket", websocketService);
+		if (typeof global.define === 'function') global.define(construct);
+		if (global.module && global.module.exports) global.module.exports(websocketService);
+	}
+
+	function onReady() {
+		setEndpoints();
+		ready = true;
+		afterReady.forEach(callback=>callback());
+		afterReady.clear();
+		global.document.removeEventListener("DOMContentLoaded", init);
+	}
+
+
 	function setEndpoints() {
 		setDefaultEndPoint();
 
@@ -143,48 +163,37 @@
 		});
 	}
 
-	let websocketService = {
-		connect: (url, socketId=defaultSocketId)=>{
-			if (!url && !ready) {
-				afterReady.add(()=>connect(url, socketId));
-			} else {
-				connect(url, socketId);
+	function construct() {
+		return {
+			connect: (url, socketId=defaultSocketId)=>{
+				if (!url && !ready) {
+					afterReady.add(()=>connect(url, socketId));
+				} else {
+					connect(url, socketId);
+				}
+			},
+
+			listen: (callback, type, socketId=defaultSocketId)=>{
+				getCallbacks(type, socketId).add(callback);
+				return ()=>getCallbacks(type, socketId).delete(callback);
+			},
+
+			removeListener: (callback, socketId)=>{
+				if (socketId && callbacks.has(socketId)) return removeCallback(callbacks.get(socketId), callback);
+				callbacks.forEach(callbacks=>removeCallback(callbacks, callback));
+			},
+
+			request: (data, socketId=defaultSocketId)=>{
+				data.method = data.method || "get";
+
+				return new Promise((resolve, reject)=>{
+					let id = randomString();
+					acknowledgements.set(id, createAcknowledge(resolve, reject));
+					send(JSON.stringify({type:"request", id, data}), socketId);
+				});
 			}
-		},
+		};
+	}
 
-		listen: (callback, type, socketId=defaultSocketId)=>{
-			getCallbacks(type, socketId).add(callback);
-			return ()=>getCallbacks(type, socketId).delete(callback);
-		},
-
-		removeListener: (callback, socketId)=>{
-			if (socketId && callbacks.has(socketId)) return removeCallback(callbacks.get(socketId), callback);
-			callbacks.forEach(callbacks=>removeCallback(callbacks, callback));
-		},
-
-		request: (data, socketId=defaultSocketId)=>{
-			data.method = data.method || "get";
-
-			return new Promise((resolve, reject)=>{
-				let id = randomString();
-				acknowledgements.set(id, createAcknowledge(resolve, reject));
-				send(JSON.stringify({type:"request", id, data}), socketId);
-			});
-		}
-	};
-
-	const init = ()=>{
-		setEndpoints();
-		ready = true;
-		afterReady.forEach(callback=>callback());
-		afterReady.clear();
-		global.document.removeEventListener("DOMContentLoaded", init);
-	};
-
-	global.document.addEventListener("DOMContentLoaded", init);
-
-
-	if ($) $.websocket = websocketService;
-	//if (global.angular) global.angular.module("websocket-express").factory("$websocket", websocketService);
-
+	init();
 })(window, window.jQuery);
