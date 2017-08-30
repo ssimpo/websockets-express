@@ -1,12 +1,48 @@
 (function(global, $){
 	'use strict';
 
+	let ready = false;
+
+	const afterReady = new Set();
 	const defaultSocketId = 'main';
 	const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXTZabcdefghiklmnopqrstuvwxyz'.split('');
+	const endpoints = new Map();
 	const callbacks = new Map();
 	const acknowledgements = new Map();
 	const sendQueue = new Map();
 	const sockets = new Map();
+
+	function setEndpoints() {
+		setDefaultEndPoint();
+
+		let endpointLinkElements = global.document.querySelectorAll("link[rel=websocket-endpoint][href]");
+		if (endpointLinkElements.length) {
+			for (let n=0; n < endpointLinkElements.length; n++) {
+				let url = (endpointLinkElements[n].getAttribute("href") || "").trim();
+				if (url !== "") {
+					let title = (endpointLinkElements[n].getAttribute("title") || "").trim();
+					if (title === "") title = defaultSocketId;
+					endpoints.set(title, url);
+				}
+			}
+		}
+	}
+
+	function setDefaultEndPoint() {
+		let origin = global.location.origin;
+		let baseElement = global.document.querySelector("base[href]");
+		let url;
+		if (baseElement) {
+			let base = (baseElement.getAttribute("href") || "").trim().replace(origin, "");
+			if (base !== "") url = origin+base;
+		} else {
+			url = origin+'/';
+		}
+
+		url = url.replace("https://", "wss://").replace("http://", "ws://");
+
+		endpoints.set(defaultSocketId, url);
+	}
 
 	/**
 	 * Generate a random string of specified length.
@@ -31,86 +67,122 @@
 		};
 	}
 
-	function ready(id=defaultSocketId) {
-		if (!sockets.has(id)) return;
-		const ws = sockets.get(id);
+	function socketReady(socketId=defaultSocketId) {
+		if (!sockets.has(socketId)) return undefined;
+		const ws = sockets.get(socketId);
 		return ((ws.readyState === ws.OPEN) ? ws : undefined);
 	}
 
-	function runSendQueue(id=defaultSocketId) {
-		const _sendQueue = sendQueue.get(id);
-		const ws = ready(id);
+	function runSendQueue(socketId=defaultSocketId) {
+		const _sendQueue = sendQueue.get(socketId);
+		const ws = socketReady(socketId);
 		if (_sendQueue && ws) {
 			_sendQueue.forEach(message=>ws.send(message));
 			_sendQueue.clear();
-			sendQueue.delete(id);
+			sendQueue.delete(socketId);
 		}
 	}
 
-	function send(message, id=defaultSocketId) {
-		const ws = ready(id);
+	function send(message, socketId=defaultSocketId) {
+		const ws = socketReady(socketId);
 		if (ws) return ws.send(message);
-		if (!sendQueue.has(id)) sendQueue.set(id, new Set());
-		sendQueue.get(id).add(message);
+		if (!sendQueue.has(socketId)) sendQueue.set(socketId, new Set());
+		sendQueue.get(socketId).add(message);
 	}
 
-	function getCallbacks(type, id=defaultSocketId) {
-		if (!callbacks.has(id)) callbacks.set(id, new Map());
-		if (!callbacks.get(id).has(type)) callbacks.get(id).set(type, new Set());
-		return callbacks.get(id).get(type);
+	function getCallbacks(type, socketId=defaultSocketId) {
+		if (!callbacks.has(socketId)) callbacks.set(socketId, new Map());
+		if (!callbacks.get(socketId).has(type)) callbacks.get(socketId).set(type, new Set());
+		return callbacks.get(socketId).get(type);
 	}
 
 	function removeCallback(callbacks, callback) {
 		callbacks.forEach(callbacks=>callbacks.delete(callback));
 	}
 
-	let websocketService = {
-		connect: (url, id=defaultSocketId)=>{
-			if (!sockets.has(id)) sockets.set(id, new WebSocket(url));
-			const ws = sockets.get(id);
+	function getConnectUrl(url, socketId) {
+		if (url) {
+			if (!ready) {
+				afterReady.add(()=>endpoints.set(socketId, url));
+			} else {
+				endpoints.set(socketId, url);
+			}
+		}
+		if (!url && !endpoints.has(socketId)) throw `No websocket endpoint for ${socketId}`;
+		if (!url && endpoints.has(socketId)) url = endpoints.get(socketId);
 
-			ws.addEventListener('open', ()=>{
-				ws.addEventListener('message', messageEvent=>{
-					let message = JSON.parse(messageEvent.data);
-					if (!message.id) {
-						if (callbacks.has(message.type)) {
-							callbacks.get(type).forEach(callbacks=>callback(message.data));
-						}
-					} else {
-						if (acknowledgements.has(message.id)) {
-							let acknowledgement = acknowledgements.get(message.id);
-							if (message.type === 'error') {
-								acknowledgement(message.data, null);
-							} else {
-								acknowledgement(null, message.data);
-							}
-							acknowledgements.delete(message.id);
-						}
+		return url;
+	}
+
+	function connect(url, socketId) {
+		url = getConnectUrl(url, socketId);
+		if (!sockets.has(socketId)) sockets.set(socketId, new WebSocket(url));
+		const ws = sockets.get(socketId);
+
+		ws.addEventListener("open", ()=>{
+			ws.addEventListener("message", messageEvent=>{
+				let message = JSON.parse(messageEvent.data);
+				if (!message.id) {
+					if (callbacks.has(message.type)) {
+						callbacks.get(type).forEach(callbacks=>callback(message.data));
 					}
-				});
-
-				runSendQueue(id);
+				} else {
+					if (acknowledgements.has(message.id)) {
+						let acknowledgement = acknowledgements.get(message.id);
+						if (message.type === 'error') {
+							acknowledgement(message.data, null);
+						} else {
+							acknowledgement(null, message.data);
+						}
+						acknowledgements.delete(message.id);
+					}
+				}
 			});
+
+			runSendQueue(socketId);
+		});
+	}
+
+	let websocketService = {
+		connect: (url, socketId=defaultSocketId)=>{
+			if (!url && !ready) {
+				afterReady.add(()=>connect(url, socketId));
+			} else {
+				connect(url, socketId);
+			}
 		},
 
-		listen: (callback, type, id=defaultSocketId)=>{
-			getCallbacks(type, id).add(callback);
-			return ()=>getCallbacks(type, id).delete(callback);
+		listen: (callback, type, socketId=defaultSocketId)=>{
+			getCallbacks(type, socketId).add(callback);
+			return ()=>getCallbacks(type, socketId).delete(callback);
 		},
 
-		removeListener: (callback, id)=>{
-			if (id && callbacks.has(id)) return removeCallback(callbacks.get(id), callback);
+		removeListener: (callback, socketId)=>{
+			if (socketId && callbacks.has(socketId)) return removeCallback(callbacks.get(socketId), callback);
 			callbacks.forEach(callbacks=>removeCallback(callbacks, callback));
 		},
 
-		request: (path, body="", method="get")=>{
+		request: (data, socketId=defaultSocketId)=>{
+			data.method = data.method || "get";
+
 			return new Promise((resolve, reject)=>{
 				let id = randomString();
 				acknowledgements.set(id, createAcknowledge(resolve, reject));
-				send(JSON.stringify({type:"request", id, data: {method, path, body}}));
+				send(JSON.stringify({type:"request", id, data}), socketId);
 			});
 		}
 	};
+
+	const init = ()=>{
+		setEndpoints();
+		ready = true;
+		afterReady.forEach(callback=>callback());
+		afterReady.clear();
+		global.document.removeEventListener("DOMContentLoaded", init);
+	};
+
+	global.document.addEventListener("DOMContentLoaded", init);
+
 
 	if ($) $.websocket = websocketService;
 	//if (global.angular) global.angular.module("websocket-express").factory("$websocket", websocketService);
