@@ -16,11 +16,11 @@
 	function init() {
 		global.document.addEventListener("DOMContentLoaded", onReady);
 
-		const websocketService = construct();
-		if ($) $.websocket = websocketService;
-		if (global.angular) global.angular.module("websocket-express", []).factory("$websocket", websocketService);
-		if (typeof global.define === 'function') global.define(construct);
-		if (global.module && global.module.exports) global.module.exports(websocketService);
+		const wss = new WebSocketService();
+		if ($) $.websocket = wss;
+		if (global.angular) global.angular.module("websocket-express", []).factory("$websocket", wss);
+		if (typeof global.define === 'function') global.define(wss);
+		if (global.module && global.module.exports) global.module.exports(wss);
 	}
 
 	function onReady() {
@@ -128,7 +128,7 @@
 				endpoints.set(socketId, url);
 			}
 		}
-		if (!url && !endpoints.has(socketId)) throw `No websocket endpoint for ${socketId}`;
+		if (!url && !endpoints.has(socketId)) throw new URIError(`No websocket endpoint for ${socketId}`);
 		if (!url && endpoints.has(socketId)) url = endpoints.get(socketId);
 
 		return url;
@@ -163,36 +163,53 @@
 		});
 	}
 
-	function construct() {
-		return {
-			connect: (url, socketId=defaultSocketId)=>{
-				if (!url && !ready) {
-					afterReady.add(()=>connect(url, socketId));
-				} else {
-					connect(url, socketId);
-				}
-			},
+	let WebSocketServiceInstance;
 
-			listen: (callback, type, socketId=defaultSocketId)=>{
-				getCallbacks(type, socketId).add(callback);
-				return ()=>getCallbacks(type, socketId).delete(callback);
-			},
+	class WebSocketService {
+		constructor() {
+			if (!WebSocketServiceInstance) WebSocketServiceInstance = this;
+			return WebSocketServiceInstance;
+		}
 
-			removeListener: (callback, socketId)=>{
-				if (socketId && callbacks.has(socketId)) return removeCallback(callbacks.get(socketId), callback);
-				callbacks.forEach(callbacks=>removeCallback(callbacks, callback));
-			},
-
-			request: (data, socketId=defaultSocketId)=>{
-				data.method = data.method || "get";
-
-				return new Promise((resolve, reject)=>{
-					let id = randomString();
-					acknowledgements.set(id, createAcknowledge(resolve, reject));
-					send(JSON.stringify({type:"request", id, data}), socketId);
-				});
+		connect(url, socketId=defaultSocketId) {
+			if (!url && !ready) {
+				afterReady.add(()=>connect(url, socketId));
+			} else {
+				connect(url, socketId);
 			}
-		};
+		}
+
+		listen(callback, type, socketId=defaultSocketId) {
+			getCallbacks(type, socketId).add(callback);
+			return ()=>getCallbacks(type, socketId).delete(callback);
+		}
+
+		removeListener(callback, socketId) {
+			if (socketId && callbacks.has(socketId)) return removeCallback(callbacks.get(socketId), callback);
+			callbacks.forEach(callbacks=>removeCallback(callbacks, callback));
+		}
+
+		request(data, socketId=defaultSocketId) {
+			data.method = data.method || "get";
+
+			return new Promise((resolve, reject)=>{
+				let id = randomString();
+				acknowledgements.set(id, createAcknowledge(resolve, reject));
+				send(JSON.stringify({type:"request", id, data}), socketId);
+			});
+		}
+
+		addEndpoint(id, url) {
+			endpoints.set(id, url);
+		}
+
+		removeEndpoint(id, url) {
+			endpoints.delete(id);
+		}
+
+		get [Symbol.toStringTag]() {
+			return "WebSocketService";
+		}
 	}
 
 	init();
