@@ -1,11 +1,12 @@
-(function($){
+(function(global, $){
 	'use strict';
 
-	let ws;
-	let callbacks = new Map();
-	let acknowledgements = new Map();
-	let sendQueue = new Set();
-	let ready = false;
+	const defaultSocketId = 'main';
+	const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXTZabcdefghiklmnopqrstuvwxyz'.split('');
+	const callbacks = new Map();
+	const acknowledgements = new Map();
+	const sendQueue = new Map();
+	const sockets = new Map();
 
 	/**
 	 * Generate a random string of specified length.
@@ -15,16 +16,10 @@
 	 * @returns {string}            The random string.r
 	 */
 	function randomString(length=32) {
-		var chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXTZabcdefghiklmnopqrstuvwxyz'.split('');
+		if (! length) length = Math.floor(Math.random() * chars.length);
 
-		if (! length) {
-			length = Math.floor(Math.random() * chars.length);
-		}
-
-		var str = '';
-		for (var i = 0; i < length; i++) {
-			str += chars[Math.floor(Math.random() * chars.length)];
-		}
+		let str = '';
+		for (let i = 0; i < length; i++) str += chars[Math.floor(Math.random() * chars.length)];
 		return str;
 	}
 
@@ -36,63 +31,88 @@
 		};
 	}
 
-	function send(message) {
-		if (ready) {
-			ws.send(message);
-		} else {
-			sendQueue.add(message);
+	function ready(id=defaultSocketId) {
+		if (!sockets.has(id)) return;
+		const ws = sockets.get(id);
+		return ((ws.readyState === ws.OPEN) ? ws : undefined);
+	}
+
+	function runSendQueue(id=defaultSocketId) {
+		const _sendQueue = sendQueue.get(id);
+		const ws = ready(id);
+		if (_sendQueue && ws) {
+			_sendQueue.forEach(message=>ws.send(message));
+			_sendQueue.clear();
+			sendQueue.delete(id);
 		}
 	}
 
-	$.websocket = {
-		connect: url=>{
-			if (!ws) {
-				ws = new WebSocket(url);
+	function send(message, id=defaultSocketId) {
+		const ws = ready(id);
+		if (ws) return ws.send(message);
+		if (!sendQueue.has(id)) sendQueue.set(id, new Set());
+		sendQueue.get(id).add(message);
+	}
 
-				ws.addEventListener('open', ()=>{
-					ready = true;
+	function getCallbacks(type, id=defaultSocketId) {
+		if (!callbacks.has(id)) callbacks.set(id, new Map());
+		if (!callbacks.get(id).has(type)) callbacks.get(id).set(type, new Set());
+		return callbacks.get(id).get(type);
+	}
 
-					ws.addEventListener('message', messageEvent=>{
-						let message = JSON.parse(messageEvent.data);
-						if (!message.id) {
-							if (callbacks.has(message.type)) callbacks.get(type).forEach(callbacks=>callback(message.data));
-						} else {
-							if (acknowledgements.has(message.id)) {
-								let acknowledgement = acknowledgements.get(message.id);
-								if (message.type === 'error') {
-									acknowledgement(message.data, null);
-								} else {
-									acknowledgement(null, message.data);
-								}
-								acknowledgements.delete(message.id);
-							}
+	function removeCallback(callbacks, callback) {
+		callbacks.forEach(callbacks=>callbacks.delete(callback));
+	}
+
+	let websocketService = {
+		connect: (url, id=defaultSocketId)=>{
+			if (!sockets.has(id)) sockets.set(id, new WebSocket(url));
+			const ws = sockets.get(id);
+
+			ws.addEventListener('open', ()=>{
+				ws.addEventListener('message', messageEvent=>{
+					let message = JSON.parse(messageEvent.data);
+					if (!message.id) {
+						if (callbacks.has(message.type)) {
+							callbacks.get(type).forEach(callbacks=>callback(message.data));
 						}
-					});
-
-					sendQueue.forEach(message=>ws.send(message));
+					} else {
+						if (acknowledgements.has(message.id)) {
+							let acknowledgement = acknowledgements.get(message.id);
+							if (message.type === 'error') {
+								acknowledgement(message.data, null);
+							} else {
+								acknowledgement(null, message.data);
+							}
+							acknowledgements.delete(message.id);
+						}
+					}
 				});
-			}
-		},
 
-		listen: (callback, type)=>{
-			if (!callbacks.has(type)) callbacks.set(type, new Set());
-			callbacks.get(type).add(callback);
-			return ()=>callback.get(type).delete(callback);
-		},
-
-		removeListener: callback=>{
-			callbacks.forEach(callbacks=>{
-				if (callbacks.has(callback)) callbacks.delete(callback);
+				runSendQueue(id);
 			});
 		},
 
-		request: (path, method="get")=>{
+		listen: (callback, type, id=defaultSocketId)=>{
+			getCallbacks(type, id).add(callback);
+			return ()=>getCallbacks(type, id).delete(callback);
+		},
+
+		removeListener: (callback, id)=>{
+			if (id && callbacks.has(id)) return removeCallback(callbacks.get(id), callback);
+			callbacks.forEach(callbacks=>removeCallback(callbacks, callback));
+		},
+
+		request: (path, body="", method="get")=>{
 			return new Promise((resolve, reject)=>{
 				let id = randomString();
 				acknowledgements.set(id, createAcknowledge(resolve, reject));
-				send(JSON.stringify({type:"request", id, data: {method, path}}));
+				send(JSON.stringify({type:"request", id, data: {method, path, body}}));
 			});
 		}
 	};
 
-})(jQuery);
+	if ($) $.websocket = websocketService;
+	//if (global.angular) global.angular.module("websocket-express").factory("$websocket", websocketService);
+
+})(window, window.jQuery);
