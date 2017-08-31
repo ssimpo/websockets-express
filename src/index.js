@@ -241,6 +241,28 @@
 			callbacks.forEach(callbacks=>removeCallback(callbacks, callback));
 		}
 
+		upload(socketId=defaultSocketId, type='json') {
+			let id=randomString();
+
+			function chunkUpload(data) {
+				data.method = data.method || "post";
+				let message = {type:"upload", chunk:true, id, data};
+				let messageFunction = ()=>{
+					if (parsers.has(type)) return parsers.get(type)(message);
+					throw new TypeError(`No parser for type ${type}`);
+				};
+				send(messageFunction, socketId);
+			}
+
+			acknowledgements.set(id, createAcknowledge(response=>{
+				if (chunkUpload.hasOwnProperty('ondone')) chunkUpload.ondone(response);
+			}, err=>{
+				if (chunkUpload.hasOwnProperty('onerror')) chunkUpload.onerror(err);
+			}));
+
+			return chunkUpload;
+		}
+
 		request(data, socketId=defaultSocketId, type='json') {
 			data.method = data.method || "get";
 
