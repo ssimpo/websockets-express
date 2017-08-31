@@ -165,7 +165,6 @@
 		ws.addEventListener("open", ()=>{
 			ws.addEventListener("message", messageEvent=>{
 				const respond = (message)=>{
-					console.log("RESPONSE", message);
 					if (!message.id) {
 						if (callbacks.has(message.type)) {
 							callbacks.get(type).forEach(callbacks=>callback(message.data));

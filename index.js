@@ -7,6 +7,31 @@ const handleUpgrade = require('./lib/expressWebsocket');
 const Request = require('./lib/request');
 const Response = require('./lib/response');
 
+
+/**
+ * Get the length of a message object. Used to fake the content-length header in socket.io routes.
+ *
+ * @private
+ * @param {*} message     Message to get length of.  This is assumed to be an object.
+ * @returns {number}      Message length.
+ */
+function _getContentLength(message) {
+	let txt;
+
+	try {
+		txt = JSON.stringify(message || {});
+	} catch(error) {
+		try {
+			txt = message.toString();
+		} catch(error) {
+			txt = " ";
+		}
+	}
+
+	return txt.toString().length.toString();
+}
+
+
 function websocketMiddleware(req, res, next) {
 	if (!!req.websocket || !req.headers || req.headers.upgrade === undefined || req.headers.upgrade.toLowerCase() !== 'websocket') {
 		return next();
@@ -32,8 +57,16 @@ function websocketMiddleware(req, res, next) {
 			}
 			if (message && message.type) {
 				if (message.type = 'request') {
+					message.data.headers = message.data.headers || {};
+					Object.assign(message.data.headers, {
+						'Content-Type': 'application/json',
+						'Transfer-Encoding': 'identity',
+						'Content-Length': _getContentLength(message.data.body)
+					});
+
 					let _req = new Request(req, message.data);
 					let _res = new Response(_req, client, message.id, type);
+
 					app.handle(_req, _res);
 				}
 			}
