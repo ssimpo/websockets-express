@@ -2,6 +2,7 @@
 	'use strict';
 
 	let BSON, bson;
+	let buffer = global.buffer;
 	let ready = false;
 
 	const afterReady = new Set();
@@ -16,23 +17,29 @@
 
 
 	function init() {
-		if (global.require && !global.define) {
-			BSON = require('bson');
+		function _init() {
 			bson = new BSON.BSON();
 			global.document.addEventListener("DOMContentLoaded", onReady);
-		} else if (global.define && (global.require || global.requireJs)) {
-			(requireJs || require)(['bson'], BSON=>{
-				BSON = require('bson');
-				bson = new BSON.BSON();
-				global.document.addEventListener("DOMContentLoaded", onReady);
-			});
+
+			const wss = new WebSocketService();
+			if ($) $.websocket = wss;
+			if (global.angular) global.angular.module("websocket-express", []).factory("$websocket", wss);
+			if (typeof global.define === "function") global.define(wss);
+			if (global.module && global.module.exports) global.module.exports(wss);
 		}
 
-		const wss = new WebSocketService();
-		if ($) $.websocket = wss;
-		if (global.angular) global.angular.module("websocket-express", []).factory("$websocket", wss);
-		if (typeof global.define === "function") global.define(wss);
-		if (global.module && global.module.exports) global.module.exports(wss);
+		if (global.bson) {
+			BSON = global.bson;
+			_init();
+		} else if (global.require && !global.define) {
+			BSON = require('bson');
+			_init();
+		} else if (global.define && (global.require || global.requireJs)) {
+			(requireJs || require)(['bson'], _BSON=>{
+				BSON = _BSON;
+				_init();
+			});
+		}
 	}
 
 	function onReady() {
@@ -180,7 +187,7 @@
 				} else if (messageEvent.data instanceof Blob) {
 					let reader = new FileReader();
 					reader.onload = function() {
-						respond(bson.deserialize(new Uint8Array(this.result)));
+						respond(new buffer.Buffer(new Uint8Array(this.result)));
 					};
 					reader.readAsArrayBuffer(messageEvent.data);
 				}
@@ -208,6 +215,7 @@
 				try {
 					return bson.serialize(data);
 				} catch(err) {
+					console.log(err);
 					throw new TypeError(`Could not convert data to bson for sending`);
 				}
 			});
