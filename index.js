@@ -8,6 +8,8 @@ const Request = require('./lib/request');
 const Response = require('./lib/response');
 const EventEmitter = require('events');
 const $private = new WeakMap();
+const rejects = new Set();
+const crypto = require('crypto');
 
 /**
  * Get the length of a message object. Used to fake the content-length header in socket.io routes.
@@ -57,9 +59,14 @@ function websocketMiddleware(req, res, next) {
 				}
 			}
 			if (message && message.type) {
+				const shasum = crypto.createHash('sha1');
+				shasum.update(message.id+req.sessionID);
+				const messageId = shasum.digest('hex');
+
 				if ((message.type === 'request') || (message.type === 'upload')) {
 					if (!app.uploadTracking.has(message.id)) {
-						if (message.type === 'upload') app.uploadTracking.set(message.id);
+						if (message.type === 'upload') app.uploadTracking.set(messageId);
+
 						message.data.headers = message.data.headers || {};
 						Object.assign(message.data.headers, {
 							'Content-Type': 'application/json',
@@ -67,7 +74,7 @@ function websocketMiddleware(req, res, next) {
 							'Content-Length': _getContentLength(message.data.body)
 						});
 
-						let _req = new Request(req, message.data, message.id);
+						let _req = new Request(req, message.data, messageId);
 						let _res = new Response(_req, client, message.id, type);
 
 						if (message.type = 'upload') {
@@ -91,14 +98,22 @@ class uploadTracking extends EventEmitter {
 		$private.set(this, new Map());
 	}
 
+	reject(id) {
+		rejects.add(id);
+	}
+
 	push(id, chunk) {
-		if (!this.has(id)) this.set(id);
-		$private.get(this).get(id).push(chunk);
-		this.emit(id, 'chunk');
+		if (!rejects.has(id)) {
+			if (!this.has(id)) this.set(id);
+			$private.get(this).get(id).push(chunk);
+			this.emit(id, 'chunk');
+		}
+		return this
 	}
 
 	set(id) {
 		if (!this.has(id)) $private.get(this).set(id, []);
+		return this;
 	}
 
 	has(id) {
