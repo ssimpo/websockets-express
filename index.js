@@ -64,7 +64,7 @@ function websocketMiddleware(req, res, next) {
 				const messageId = shasum.digest('hex');
 
 				if ((message.type === 'request') || (message.type === 'upload')) {
-					if (!app.uploadTracking.has(message.id)) {
+					if (!app.uploadTracking.has(messageId)) {
 						if (message.type === 'upload') app.uploadTracking.set(messageId);
 
 						message.data.headers = message.data.headers || {};
@@ -83,9 +83,8 @@ function websocketMiddleware(req, res, next) {
 						}
 
 						app.handle(_req, _res);
-					} else {
-						app.uploadTracking.push(message.id, message.data.body);
-					}
+
+					} else app.uploadTracking.push(messageId, message.data.body);
 				}
 			}
 		});
