@@ -1,7 +1,6 @@
 (function(global, $){
 	'use strict';
 
-	let BSON, bson;
 	let buffer = global.buffer;
 	let ready = false;
 
@@ -17,29 +16,10 @@
 
 
 	function init() {
-		function _init() {
-			bson = new BSON.BSON();
-			global.document.addEventListener("DOMContentLoaded", onReady);
-
-			const wss = new WebSocketService();
-			if ($) $.websocket = wss;
-			if (global.angular) global.angular.module("websocket-express", []).factory("$websocket", wss);
-			if (typeof global.define === "function") global.define(wss);
-			if (global.module && global.module.exports) global.module.exports(wss);
-		}
-
-		if (global.bson) {
-			BSON = global.bson;
-			_init();
-		} else if (global.require && !global.define) {
-			BSON = require('bson');
-			_init();
-		} else if (global.define && (global.require || global.requireJs)) {
-			(requireJs || require)(['bson'], _BSON=>{
-				BSON = _BSON;
-				_init();
-			});
-		}
+		global.document.addEventListener("DOMContentLoaded", onReady);
+		const wss = new WebSocketService();
+		if ($) $.websocket = wss;
+		if (global.angular) global.angular.module("websocket-express", []).factory("$websocket", wss);
 	}
 
 	function onReady() {
@@ -157,44 +137,71 @@
 		return url;
 	}
 
+	function reconnect(url, socketId) {
+		sockets.delete(socketId);
+		setTimeout(()=>{
+			console.log("Trying reconnect");
+			sockets.set(socketId, new WebSocket(url));
+			connecting(sockets.get(socketId), url, socketId);
+		}, 1000*3);
+	}
+
+	function connecting(ws, url, socketId) {
+		function open() {
+			ws.addEventListener("close", close);
+			ws.addEventListener("message", message);
+			runSendQueue(socketId);
+		}
+
+		function close() {
+			ws.removeEventListener("open", open);
+			ws.removeEventListener("close", message);
+			ws.removeEventListener("message", message);
+			reconnect(url, socketId, ws);
+		}
+
+		function error(err) {
+			return close();
+		}
+
+		function message(messageEvent) {
+			const respond = (message)=>{
+				if (!message.id) {
+					if (callbacks.has(message.type)) {
+						callbacks.get(type).forEach(callbacks=>callback(message.data));
+					}
+				} else {
+					if (acknowledgements.has(message.id)) {
+						let acknowledgement = acknowledgements.get(message.id);
+						if (message.type === 'error') {
+							acknowledgement(message.data, null);
+						} else {
+							acknowledgement(null, message.data);
+						}
+						acknowledgements.delete(message.id);
+					}
+				}
+			};
+
+			if (typeof messageEvent.data === 'string') {
+				respond(JSON.parse(messageEvent.data));
+			} else if (messageEvent.data instanceof Blob) {
+				let reader = new FileReader();
+				reader.onload = function() {
+					respond(new buffer.Buffer(new Uint8Array(this.result)));
+				};
+				reader.readAsArrayBuffer(messageEvent.data);
+			}
+		}
+
+		ws.addEventListener("error", error);
+		ws.addEventListener("open", open);
+	}
+
 	function connect(url, socketId) {
 		url = getConnectUrl(url, socketId);
 		if (!sockets.has(socketId)) sockets.set(socketId, new WebSocket(url));
-		const ws = sockets.get(socketId);
-
-		ws.addEventListener("open", ()=>{
-			ws.addEventListener("message", messageEvent=>{
-				const respond = (message)=>{
-					if (!message.id) {
-						if (callbacks.has(message.type)) {
-							callbacks.get(type).forEach(callbacks=>callback(message.data));
-						}
-					} else {
-						if (acknowledgements.has(message.id)) {
-							let acknowledgement = acknowledgements.get(message.id);
-							if (message.type === 'error') {
-								acknowledgement(message.data, null);
-							} else {
-								acknowledgement(null, message.data);
-							}
-							acknowledgements.delete(message.id);
-						}
-					}
-				};
-
-				if (typeof messageEvent.data === 'string') {
-					respond(JSON.parse(messageEvent.data));
-				} else if (messageEvent.data instanceof Blob) {
-					let reader = new FileReader();
-					reader.onload = function() {
-						respond(new buffer.Buffer(new Uint8Array(this.result)));
-					};
-					reader.readAsArrayBuffer(messageEvent.data);
-				}
-			});
-
-			runSendQueue(socketId);
-		});
+		connecting(sockets.get(socketId), url, socketId);
 	}
 
 	let WebSocketServiceInstance;
@@ -208,15 +215,6 @@
 					return JSON.stringify(data);
 				} catch(err) {
 					throw new TypeError(`Could not convert data to json for sending`);
-				}
-			});
-
-			this.addParser("bson", data=>{
-				try {
-					return bson.serialize(data);
-				} catch(err) {
-					console.log(err);
-					throw new TypeError(`Could not convert data to bson for sending`);
 				}
 			});
 
@@ -241,28 +239,6 @@
 			callbacks.forEach(callbacks=>removeCallback(callbacks, callback));
 		}
 
-		upload(socketId=defaultSocketId, type='json') {
-			let id=randomString();
-
-			function chunkUpload(data) {
-				data.method = data.method || "post";
-				let message = {type:"upload", chunk:true, id, data};
-				let messageFunction = ()=>{
-					if (parsers.has(type)) return parsers.get(type)(message);
-					throw new TypeError(`No parser for type ${type}`);
-				};
-				send(messageFunction, socketId);
-			}
-
-			acknowledgements.set(id, createAcknowledge(response=>{
-				if (chunkUpload.hasOwnProperty('ondone')) chunkUpload.ondone(response);
-			}, err=>{
-				if (chunkUpload.hasOwnProperty('onerror')) chunkUpload.onerror(err);
-			}));
-
-			return chunkUpload;
-		}
-
 		request(data, socketId=defaultSocketId, type='json') {
 			data.method = data.method || "get";
 
@@ -276,6 +252,10 @@
 				};
 				send(messageFunction, socketId);
 			});
+		}
+
+		ready(socketId=defaultSocketId) {
+			return !!socketReady(socketId);
 		}
 
 		addEndpoint(id, url) {
