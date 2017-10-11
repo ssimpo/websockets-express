@@ -217,18 +217,20 @@
 	 */
 	function connecting(ws, url, socketId) {
 		/**
-		 * Open the websocket and send any messages in the queue.
+		 * After open listener, setup message handling and send the message queue.
 		 */
 		function open() {
+			console.log(`Opened ${url} for ${socketId}`);
 			ws.addEventListener("close", close);
 			ws.addEventListener("message", message);
 			runSendQueue(socketId);
 		}
 
 		/**
-		 * Close a socket and reconnect.
+		 * Close listener, try to reconnect.
 		 */
 		function close() {
+			console.log(`Closed ${url} for ${socketId}`);
 			ws.removeEventListener("open", open);
 			ws.removeEventListener("close", message);
 			ws.removeEventListener("message", message);
@@ -241,6 +243,7 @@
 		 * @param {Error} err		Error message to handle.
 		 */
 		function error(err) {
+			console.error(`Error on ${url} for ${socketId}`, err);
 			return close();
 		}
 
@@ -314,6 +317,16 @@
 				}
 			});
 
+			if ($ && $.BMF) {
+				this.addParser("bmf", data=>{
+					try {
+						return $.BMF.add(data).binary();
+					} catch(err) {
+						throw new TypeError(`Could not convert data to json for sending`);
+					}
+				});
+			}
+
 			return WebSocketServiceInstance;
 		}
 
@@ -376,6 +389,14 @@
 				};
 				send(messageFunction, socketId);
 			});
+		}
+
+		requestBmf(data, socketId=defaultSocketId) {
+			return this.request(data, socketId, 'bmf');
+		}
+
+		requestJson(data, socketId=defaultSocketId) {
+			return this.request(data, socketId, 'json');
 		}
 
 		/**

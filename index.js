@@ -5,6 +5,7 @@ const handleUpgrade = require('./lib/expressWebsocket');
 const Request = require('./lib/request');
 const Response = require('./lib/response');
 const crypto = require('crypto');
+const bmf = require('binary-message-format');
 
 /**
  * Get the length of a message object. Used to fake the content-length header in socket.io routes.
@@ -46,7 +47,7 @@ function websocketMiddleware(req, res, next) {
 					message = undefined;
 				}
 			} else {
-				// Add bmf stuff
+				type = 'bmf';
 			}
 
 			if (message && message.type) {
