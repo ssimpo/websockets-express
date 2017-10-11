@@ -15,6 +15,9 @@
 	const parsers = new Map();
 
 
+	/**
+	 * Initiate this module, binding into all the correct global and framework points.
+	 */
 	function init() {
 		global.document.addEventListener("DOMContentLoaded", onReady);
 		const wss = new WebSocketService();
@@ -22,6 +25,9 @@
 		if (global.angular) global.angular.module("websocket-express", []).factory("$websocket", wss);
 	}
 
+	/**
+	 * Function to call when document is ready.  Only run once to perform all waiting websocket messages.
+	 */
 	function onReady() {
 		setEndpoints();
 		ready = true;
@@ -31,6 +37,11 @@
 	}
 
 
+	/**
+	 * Search through all the locations for websocket endpoint definitions setting these.  Will use defaults if non
+	 * found. These can be defined in <link rel="websocket-endpoint"> tags, where the title attribute is the endpoint
+	 * name and the href is the endpoint.
+	 */
 	function setEndpoints() {
 		setDefaultEndPoint();
 
@@ -47,6 +58,9 @@
 		}
 	}
 
+	/**
+	 * Set the endpoint of the default endpoint, searching all the definition points for this.
+	 */
 	function setDefaultEndPoint() {
 		let origin = global.location.origin;
 		let baseElement = global.document.querySelector("base[href]");
@@ -64,18 +78,24 @@
 	}
 
 	/**
-	 * Generate a random string of specified length.
+	 * Generate a random integer between a start end end value.
 	 *
-	 * @public
-	 * @param {integer} [length=32] The length of string to return.
-	 * @returns {string}            The random string.r
+	 * @param {integer} end				The start of the range.
+	 * @param {integer} [start=0]		The end of the range.
+	 * @returns {integer}				Random generated number.
+	 */
+	function randomInt(end, start=0) {
+		return Math.floor(Math.random() * end) + start;
+	}
+
+	/**
+	 * Generate a randomstring.
+	 *
+	 * @param {integer} [length=32]		The length of string to generate.
+	 * @returns {string}				Random generated string.
 	 */
 	function randomString(length=32) {
-		if (! length) length = Math.floor(Math.random() * chars.length);
-
-		let str = '';
-		for (let i = 0; i < length; i++) str += chars[Math.floor(Math.random() * chars.length)];
-		return str;
+		return (new Array(length)).fill(0).map(()=>chars[randomInt(chars.length - 1)]).join('');
 	}
 
 	function createAcknowledge(resolve, reject) {
@@ -90,12 +110,23 @@
 		};
 	}
 
+	/**
+	 * Is given websocket ready for transporting data?
+	 *
+	 * @param {string} [socketId=defaultSocketId]		The socket id to test.
+	 * @returns {boolean}								Is it ready?
+	 */
 	function socketReady(socketId=defaultSocketId) {
 		if (!sockets.has(socketId)) return undefined;
 		const ws = sockets.get(socketId);
 		return ((ws.readyState === ws.OPEN) ? ws : undefined);
 	}
 
+	/**
+	 * Send all the messages for a given socket that are in the queue.
+	 *
+	 * @param {string} [socketId=defaultSocketId]		The socket id to send messages for.
+	 */
 	function runSendQueue(socketId=defaultSocketId) {
 		const _sendQueue = sendQueue.get(socketId);
 		const ws = socketReady(socketId);
@@ -106,6 +137,12 @@
 		}
 	}
 
+	/**
+	 * Send a given message on a given socket.
+	 *
+	 * @param {Function} messageFunction				Message function to call to generate the message.
+	 * @param {string} [socketId=defaultSocketId]		The socket to send on.
+	 */
 	function send(messageFunction, socketId=defaultSocketId) {
 		const ws = socketReady(socketId);
 		if (ws) return ws.send(messageFunction());
@@ -113,17 +150,36 @@
 		sendQueue.get(socketId).add(messageFunction);
 	}
 
+	/**
+	 * Get callbacksfor given listen type on given socket.
+	 * @param {string} type								The type to get for.
+	 * @param {string} [socketId=defaultSocketId]		The socket to get callbacks for.
+	 * @returns {Array.<Function>}						Array of callbacks.
+	 */
 	function getCallbacks(type, socketId=defaultSocketId) {
 		if (!callbacks.has(socketId)) callbacks.set(socketId, new Map());
 		if (!callbacks.get(socketId).has(type)) callbacks.get(socketId).set(type, new Set());
 		return callbacks.get(socketId).get(type);
 	}
 
+	/**
+	 * Remove the given callback from a callback set.
+	 *
+	 * @param {Set.<Set>} callbacks		Callback to search through.
+	 * @param {Function} callback		Callback to remove.
+	 */
 	function removeCallback(callbacks, callback) {
 		callbacks.forEach(callbacks=>callbacks.delete(callback));
 	}
 
-	function getConnectUrl(url, socketId) {
+	/**
+	 * Get the endpoint url for the given socket id.
+	 *
+	 * @param {string} [url]			The url to set endpoint to.
+	 * @param {string} socketId			The socket id to set endpoint on.
+	 * @returns {string}				The endpoint url for given socket id.
+	 */
+	function setEnpointUrl(url, socketId) {
 		if (url) {
 			if (!ready) {
 				afterReady.add(()=>endpoints.set(socketId, url));
@@ -137,6 +193,12 @@
 		return url;
 	}
 
+	/**
+	 * Try reconnecting to given socket after it has dropped.
+	 *
+	 * @param {string} url			The endpoint url for websocket.
+	 * @param {string} socketId		The socket id.
+	 */
 	function reconnect(url, socketId) {
 		sockets.delete(socketId);
 		setTimeout(()=>{
@@ -146,13 +208,26 @@
 		}, 1000*3);
 	}
 
+	/**
+	 * Handle websocket connection, errors and reconnection.
+	 *
+	 * @param {WebSocket} ws			The websocket to handle.
+	 * @param {string} url				The endpoint to connect to.
+	 * @param {string} socketId			The socket id to set.
+	 */
 	function connecting(ws, url, socketId) {
+		/**
+		 * Open the websocket and send any messages in the queue.
+		 */
 		function open() {
 			ws.addEventListener("close", close);
 			ws.addEventListener("message", message);
 			runSendQueue(socketId);
 		}
 
+		/**
+		 * Close a socket and reconnect.
+		 */
 		function close() {
 			ws.removeEventListener("open", open);
 			ws.removeEventListener("close", message);
@@ -160,10 +235,20 @@
 			reconnect(url, socketId, ws);
 		}
 
+		/**
+		 * Handle any websocket errors.
+		 *
+		 * @param {Error} err		Error message to handle.
+		 */
 		function error(err) {
 			return close();
 		}
 
+		/**
+		 * Handle a message event
+		 *
+		 * @param {Event} messageEvent		The message event to handle.
+		 */
 		function message(messageEvent) {
 			const respond = (message)=>{
 				if (!message.id) {
@@ -198,14 +283,25 @@
 		ws.addEventListener("open", open);
 	}
 
+	/**
+	 * Connect to a given endpoint for socket id supplied.
+	 *
+	 * @param {string} [url]	The endpoint to connect to.
+	 * @param socketId			The socket id to connecct for.
+	 */
 	function connect(url, socketId) {
-		url = getConnectUrl(url, socketId);
+		url = setEnpointUrl(url, socketId);
 		if (!sockets.has(socketId)) sockets.set(socketId, new WebSocket(url));
 		connecting(sockets.get(socketId), url, socketId);
 	}
 
 	let WebSocketServiceInstance;
 
+	/**
+	 * Websocket handler service
+	 *
+	 * @singleton
+	 */
 	class WebSocketService {
 		constructor() {
 			if (!WebSocketServiceInstance) WebSocketServiceInstance = this;
@@ -221,6 +317,12 @@
 			return WebSocketServiceInstance;
 		}
 
+		/**
+		 * Connect to a given endpoint for given socket-id.
+		 *
+		 * @param {string} url								Endpoint to connect to.
+		 * @param {string} [socketId=defaultSocketId]		Socket id to connect for.
+		 */
 		connect(url, socketId=defaultSocketId) {
 			if (!url && !ready) {
 				afterReady.add(()=>connect(url, socketId));
@@ -229,16 +331,38 @@
 			}
 		}
 
+		/**
+		 * Add a listener for given message type on given socket.
+		 *
+		 * @param {Function} callback		Listener callback.
+		 * @param {string} type				Message type to listen for.
+		 * @param {string} socketId			Socket id to use.
+		 * @returns {Function}				Unlisten function.
+		 */
 		listen(callback, type, socketId=defaultSocketId) {
 			getCallbacks(type, socketId).add(callback);
 			return ()=>getCallbacks(type, socketId).delete(callback);
 		}
 
+		/**
+		 * Remove a given listener on the given socket.
+		 *
+		 * @param {Function} callback		Listener to remove.
+		 * @param {string} socketId			Socket id to remove listener on.
+		 */
 		removeListener(callback, socketId) {
 			if (socketId && callbacks.has(socketId)) return removeCallback(callbacks.get(socketId), callback);
 			callbacks.forEach(callbacks=>removeCallback(callbacks, callback));
 		}
 
+		/**
+		 * Send a request on the given socket.
+		 *
+		 * @param {Object} data							Data to send.
+		 * @param {string} [socketId=defaultSocketId]	Socket to send on.
+		 * @param {string} [type=json]					Type of data to send.
+		 * @returns {Promise.<Object>}					Promise resolving to server response.
+		 */
 		request(data, socketId=defaultSocketId, type='json') {
 			data.method = data.method || "get";
 
@@ -254,30 +378,76 @@
 			});
 		}
 
+		/**
+		 * Is given socket open and ready?
+		 *
+		 * @param {string} [socketId=defaultSocketId]		Socket to test for readiness.
+		 * @returns {boolean}								Is it ready?
+		 */
 		ready(socketId=defaultSocketId) {
 			return !!socketReady(socketId);
 		}
 
+		/**
+		 * Add an endpoint url for a given id.
+		 *
+		 * @param {string} id				The id set endpoint on.
+		 * @param {string} url				The endpoint url.
+		 * @param {WebSocketService}		For chaining.
+		 */
 		addEndpoint(id, url) {
 			endpoints.set(id, url);
+			return this;
 		}
 
-		removeEndpoint(id, url) {
-			return endpoints.delete(id);
+		/**
+		 * remove an endpoint for a given id.
+		 *
+		 * @param {string} id				The id to remove an endpoint for.
+		 * @param {WebSocketService}		For chaining.
+		 */
+		removeEndpoint(id) {
+			endpoints.delete(id);
+			return this;
 		}
 
+		/**
+		 * Add a message parser for given type.
+		 *
+		 * @param {string} type				Message type to add for.
+		 * @param {Function} parser			Parser function to add.
+		 * @returns {WebSocketService}		For chaining.
+		 */
 		addParser(type, parser) {
 			parsers.set(type, parser);
+			return this;
 		}
 
-		removeParser(type, parser) {
-			return parsers.delete(type);
+		/**
+		 * Remove a parser for a given message type.
+		 *
+		 * @param {string} type				Message type to remove for.
+		 * @returns {WebSocketService}		For chaining.
+		 */
+		removeParser(type) {
+			parsers.delete(type);
+			return this;
 		}
 
+		/**
+		 * Get the default socket id.
+		 *
+		 * @returns {string}
+		 */
 		get defaultSocketId() {
 			return defaultSocketId;
 		}
 
+		/**
+		 * Get the object type string.
+		 *
+		 * @returns {string}
+		 */
 		get [Symbol.toStringTag]() {
 			return "WebSocketService";
 		}
