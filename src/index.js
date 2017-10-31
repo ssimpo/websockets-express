@@ -20,9 +20,14 @@
 	 */
 	function init() {
 		global.document.addEventListener("DOMContentLoaded", onReady);
-		const wss = new WebSocketService();
-		if ($) $.websocket = wss;
-		if (global.angular) global.angular.module("websocket-express", []).factory("$websocket", wss);
+		if ($) $.websocket = new WebSocketService();
+		if (global.angular) {
+			try {
+				global.angular.module("websocket-express", ["bmf"]).factory("$websocket", ["BMF", BMF=>new WebSocketService(BMF)]);
+			} catch (err) {
+				global.angular.module("websocket-express", []).factory("$websocket", ()=>new WebSocketService());
+			}
+		}
 	}
 
 	/**
@@ -306,7 +311,7 @@
 	 * @singleton
 	 */
 	class WebSocketService {
-		constructor() {
+		constructor(BMF) {
 			if (!WebSocketServiceInstance) WebSocketServiceInstance = this;
 
 			this.addParser("json", data=>{
@@ -317,12 +322,18 @@
 				}
 			});
 
-			if ($ && $.BMF) {
+			if (BMF) {
 				this.addParser("bmf", data=>{
 					try {
-						return $.BMF.add(data).binary();
+						const bmf = new BMF();
+						const headers = Object.assign({
+							method: (data.data || {}).method,
+							path: (data.data || {}).path,
+							type:"application/json"
+						}, data.headers || {});
+						return bmf.add(data.id || randomString(), headers, data.body || data).binary;
 					} catch(err) {
-						throw new TypeError(`Could not convert data to json for sending`);
+						throw new TypeError(`Could not convert data to bmf for sending`);
 					}
 				});
 			}
@@ -384,7 +395,11 @@
 				acknowledgements.set(id, createAcknowledge(resolve, reject));
 				let message = {type:"request", id, data};
 				let messageFunction = ()=>{
-					if (parsers.has(type)) return parsers.get(type)(message);
+					if (parsers.has(type)) {
+						const _message = parsers.get(type)(message);
+						console.log(_message);
+						return _message;
+					}
 					throw new TypeError(`No parser for type ${type}`);
 				};
 				send(messageFunction, socketId);
