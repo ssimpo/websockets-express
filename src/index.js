@@ -28,6 +28,14 @@
 				global.angular.module("websocket-express", []).factory("$websocket", ()=>new WebSocketService());
 			}
 		}
+
+		if (!$ && !global.angular) {
+			if (global.bolt) {
+				global.bolt.WebSocketService = WebSocketService;
+			} else {
+				global.BoltWebSocketService = WebSocketService;
+			}
+		}
 	}
 
 	/**
