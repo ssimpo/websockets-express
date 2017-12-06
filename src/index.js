@@ -13,6 +13,13 @@
 	const sendQueue = new Map();
 	const sockets = new Map();
 	const parsers = new Map();
+	const status = new Map();
+	const SOCKETSTATUS = Object.freeze({
+		CONNECTING: 1,
+		RECONNECTING: 2,
+		CLOSED: 3,
+		CONNECTED: 4
+	});
 
 
 	/**
@@ -21,13 +28,7 @@
 	function init() {
 		global.document.addEventListener("DOMContentLoaded", onReady);
 		if ($) $.websocket = new WebSocketService();
-		if (global.angular) {
-			try {
-				global.angular.module("websocket-express", ["bmf"]).factory("$websocket", ["BMF", BMF=>new WebSocketService(BMF)]);
-			} catch (err) {
-				global.angular.module("websocket-express", []).factory("$websocket", ()=>new WebSocketService());
-			}
-		}
+		if (global.angular) global.angular.module("websocket-express", []).factory("$websocket", ()=>new WebSocketService());
 
 		if (!$ && !global.angular) {
 			if (global.bolt) {
@@ -91,6 +92,22 @@
 	}
 
 	/**
+	 * Check if a status property is not one of a number of enum values.
+	 *
+	 * @param {*} status			Status to check.
+	 * @param {Object} enumeral		Enum to check within.
+	 * @param {Arrray} checks		Enum values to check.
+	 * @returns {boolean}			Does it pass the test.
+	 */
+	function notEnum(status, enumeral, checks) {
+		let _status = true;
+		checks.forEach(check=>{
+			_status = _status && (status !== enumeral[check])
+		});
+		return _status;
+	}
+
+	/**
 	 * Generate a random integer between a start end end value.
 	 *
 	 * @param {integer} end				The start of the range.
@@ -111,6 +128,13 @@
 		return (new Array(length)).fill(0).map(()=>chars[randomInt(chars.length - 1)]).join('');
 	}
 
+	/**
+	 * Create an acknowledge handler.
+	 *
+	 * @param {Function} resolve		Promise resolve handler.
+	 * @param {Function} reject			Promise rejection handler.
+	 * @returns {Function}				The handler.
+	 */
 	function createAcknowledge(resolve, reject) {
 		return (err, response)=>{
 			if (err) return reject(err);
@@ -215,9 +239,12 @@
 	function reconnect(url, socketId) {
 		sockets.delete(socketId);
 		setTimeout(()=>{
-			console.log("Trying reconnect");
-			sockets.set(socketId, new WebSocket(url));
-			connecting(sockets.get(socketId), url, socketId);
+			if (notEnum(status.get(socketId), SOCKETSTATUS, ['CONNECTING', 'RECONNECTING', 'CONNECTED'])) {
+				status.set(socketId, SOCKETSTATUS.RECONNECTING);
+				console.log("Trying reconnect");
+				sockets.set(socketId, new WebSocket(url));
+				connecting(sockets.get(socketId), url, socketId);
+			}
 		}, 1000*3);
 	}
 
@@ -233,6 +260,7 @@
 		 * After open listener, setup message handling and send the message queue.
 		 */
 		function open() {
+			status.set(socketId, SOCKETSTATUS.CONNECTED);
 			console.log(`Opened ${url} for ${socketId}`);
 			ws.addEventListener("close", close);
 			ws.addEventListener("message", message);
@@ -243,6 +271,7 @@
 		 * Close listener, try to reconnect.
 		 */
 		function close() {
+			status.set(socketId, SOCKETSTATUS.CLOSED);
 			console.log(`Closed ${url} for ${socketId}`);
 			ws.removeEventListener("open", open);
 			ws.removeEventListener("close", message);
@@ -307,8 +336,25 @@
 	 */
 	function connect(url, socketId) {
 		url = setEnpointUrl(url, socketId);
-		if (!sockets.has(socketId)) sockets.set(socketId, new WebSocket(url));
-		connecting(sockets.get(socketId), url, socketId);
+		if (notEnum(status.get(socketId), SOCKETSTATUS, ['CONNECTING', 'RECONNECTING', 'CONNECTED'])) {
+			status.set(socketId, SOCKETSTATUS.CONNECTING);
+			if (!sockets.has(socketId)) sockets.set(socketId, new WebSocket(url));
+			connecting(sockets.get(socketId), url, socketId);
+		}
+	}
+
+	/**
+	 * Json parser (default one applied by default to all new socket channels).
+	 *
+	 * @param {*} data		Data to parse into JSON.
+	 * @returns {string}	JSON from the data.
+	 */
+	function defaultJsonParser(data) {
+		try {
+			return JSON.stringify(data);
+		} catch(err) {
+			throw new TypeError(`Could not convert data to json for sending`);
+		}
 	}
 
 	let WebSocketServiceInstance;
@@ -319,33 +365,9 @@
 	 * @singleton
 	 */
 	class WebSocketService {
-		constructor(BMF) {
+		constructor() {
 			if (!WebSocketServiceInstance) WebSocketServiceInstance = this;
-
-			this.addParser("json", data=>{
-				try {
-					return JSON.stringify(data);
-				} catch(err) {
-					throw new TypeError(`Could not convert data to json for sending`);
-				}
-			});
-
-			if (BMF) {
-				this.addParser("bmf", data=>{
-					try {
-						const bmf = new BMF();
-						const headers = Object.assign({
-							method: (data.data || {}).method,
-							path: (data.data || {}).path,
-							type:"application/json"
-						}, data.headers || {});
-						return bmf.add(data.id || randomString(), headers, data.body || data).binary;
-					} catch(err) {
-						throw new TypeError(`Could not convert data to bmf for sending`);
-					}
-				});
-			}
-
+			this.addParser("json", defaultJsonParser);
 			return WebSocketServiceInstance;
 		}
 
@@ -356,11 +378,8 @@
 		 * @param {string} [socketId=defaultSocketId]		Socket id to connect for.
 		 */
 		connect(url, socketId=defaultSocketId) {
-			if (!url && !ready) {
-				afterReady.add(()=>connect(url, socketId));
-			} else {
-				connect(url, socketId);
-			}
+			if (!url && !ready) return afterReady.add(()=>connect(url, socketId));
+			connect(url, socketId);
 		}
 
 		/**
@@ -405,17 +424,12 @@
 				let messageFunction = ()=>{
 					if (parsers.has(type)) {
 						const _message = parsers.get(type)(message);
-						console.log(_message);
 						return _message;
 					}
 					throw new TypeError(`No parser for type ${type}`);
 				};
 				send(messageFunction, socketId);
 			});
-		}
-
-		requestBmf(data, socketId=defaultSocketId) {
-			return this.request(data, socketId, 'bmf');
 		}
 
 		requestJson(data, socketId=defaultSocketId) {
