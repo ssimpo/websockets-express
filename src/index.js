@@ -248,6 +248,10 @@
 		}, 1000*3);
 	}
 
+	function drop(socketId) {
+		sockets.get(socketId).close();
+	}
+
 	/**
 	 * Handle websocket connection, errors and reconnection.
 	 *
@@ -380,6 +384,10 @@
 		connect(url, socketId=defaultSocketId) {
 			if (!url && !ready) return afterReady.add(()=>connect(url, socketId));
 			connect(url, socketId);
+		}
+
+		drop(socketId=defaultSocketId) {
+			drop(socketId);
 		}
 
 		/**
