@@ -8,7 +8,6 @@
     "type": "git",
     "url": "git+https://github.com/ssimpo/websockets-express.git"
   },
-  "private": true,
   "keywords": [
     "Express",
     "Websockets"
@@ -33,7 +32,7 @@
   },
   "homepage": "https://github.com/ssimpo/websockets-express#readme",
   "dependencies": {
-    "binary-message-format": "git+ssh://git@aaron.whitebolt:simpo/binary-message-format.git",
+    "@simpo/binary-message-format": "^1.0.0",
     "content-disposition": "^0.5.2",
     "depd": "^1.1.1",
     "mime": "^1.3.6",
