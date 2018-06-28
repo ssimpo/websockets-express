@@ -526,12 +526,6 @@
     normalize-path "^2.0.1"
     through2 "^2.0.3"
 
-"@simpo/binary-message-format@^1.0.0":
-  version "1.0.0"
-  resolved "https://registry.yarnpkg.com/@simpo/binary-message-format/-/binary-message-format-1.0.0.tgz#a58a8a18e93fe5065debedd12bb52f78a7909923"
-  dependencies:
-    text-encoding "^0.6.4"
-
 abbrev@1:
   version "1.1.1"
   resolved "https://registry.yarnpkg.com/abbrev/-/abbrev-1.1.1.tgz#f8f2c887ad10bf67f634f005b6987fed3179aac8"
@@ -2876,10 +2870,6 @@ tar@^4:
     mkdirp "^0.5.0"
     safe-buffer "^5.1.2"
     yallist "^3.0.2"
-
-text-encoding@^0.6.4:
-  version "0.6.4"
-  resolved "https://registry.yarnpkg.com/text-encoding/-/text-encoding-0.6.4.tgz#e399a982257a276dae428bb92845cb71bdc26d19"
 
 through2-filter@^2.0.0:
   version "2.0.0"

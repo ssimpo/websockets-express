@@ -1,6 +1,6 @@
 {
   "name": "@simpo/websocket-express",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "",
   "main": "index.js",
   "engines": ">=6.0.0",
@@ -32,7 +32,6 @@
   },
   "homepage": "https://github.com/ssimpo/websockets-express#readme",
   "dependencies": {
-    "@simpo/binary-message-format": "^1.0.0",
     "content-disposition": "^0.5.2",
     "depd": "^1.1.2",
     "mime": "^2.3.1",

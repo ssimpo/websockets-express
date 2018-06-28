@@ -1,5 +1,4 @@
 dependencies:
-  '@simpo/binary-message-format': 1.0.0
   content-disposition: 0.5.2
   depd: 1.1.2
   mime: 2.3.1
@@ -632,12 +631,6 @@ packages:
       node: '>= 0.10'
     resolution:
       integrity: sha1-iQrnxdjId/bThIYCFazp1+yUW9o=
-  /@simpo/binary-message-format/1.0.0:
-    dependencies:
-      text-encoding: 0.6.4
-    dev: false
-    resolution:
-      integrity: sha512-Tx5VAbSH8I9aUabU/LDpfPjnqjcUgjjdnD5kMO3gMH7CBxAUiVq/1MdSlgkG/annSWRd+SfXjGOoQYQciEdZvQ==
   /acorn/5.7.1:
     dev: true
     engines:
@@ -3209,10 +3202,6 @@ packages:
     dev: true
     resolution:
       integrity: sha1-PPh9/rTQe0o/FIJ7wYaz/QxkXNg=
-  /text-encoding/0.6.4:
-    dev: false
-    resolution:
-      integrity: sha1-45mpgiV6J22uQou5KEXLcb3CbRk=
   /through2-filter/2.0.0:
     dependencies:
       through2: 2.0.3
@@ -3585,7 +3574,6 @@ specifiers:
   '@babel/plugin-syntax-async-generators': ^7.0.0-beta.51
   '@babel/plugin-transform-regenerator': ^7.0.0-beta.44
   '@babel/preset-env': ^7.0.0-beta.51
-  '@simpo/binary-message-format': ^1.0.0
   babel-plugin-syntax-async-functions: ^7.0.0-beta.0
   babel-plugin-transform-async-generator-functions: ^7.0.0-beta.3
   chai: ^4.1.2
