@@ -1,6 +1,6 @@
 {
   "name": "@simpo/websocket-express",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "",
   "main": "index.js",
   "engines": ">=6.0.0",
@@ -34,34 +34,33 @@
   "dependencies": {
     "@simpo/binary-message-format": "^1.0.0",
     "content-disposition": "^0.5.2",
-    "depd": "^1.1.1",
-    "mime": "^1.3.6",
-    "statuses": "^1.4.0",
-    "type-is": "^1.6.15",
+    "depd": "^1.1.2",
+    "mime": "^2.3.1",
+    "statuses": "^1.5.0",
+    "type-is": "^1.6.16",
     "vary": "^1.1.1",
-    "ws": "^3.1.0"
+    "ws": "^5.2.1"
   },
   "devDependencies": {
-    "babel-preset-es2015": "*",
-    "chai": "^3.3.0",
-    "chai-as-promised": "^6.0.0",
-    "gulp": "*",
-    "gulp-angular-embed-templates": "*",
-    "gulp-babel": "*",
-    "gulp-concat": "*",
-    "gulp-rename": "^1.2.2",
-    "gulp-sourcemaps": "*",
-    "gulp-uglify": "*",
-    "gulp-util": "*",
-    "mocha": "^2.3.3"
-  },
-  "babel": {
-    "presets": [
-      "es2015"
-    ]
+    "@babel/core": "^7.0.0-beta.44",
+    "@babel/plugin-proposal-object-rest-spread": "^7.0.0-beta.44",
+    "@babel/plugin-syntax-async-generators": "^7.0.0-beta.51",
+    "@babel/plugin-transform-regenerator": "^7.0.0-beta.44",
+    "@babel/preset-env": "^7.0.0-beta.51",
+    "babel-plugin-syntax-async-functions": "^7.0.0-beta.0",
+    "babel-plugin-transform-async-generator-functions": "^7.0.0-beta.3",
+    "chai": "^4.1.2",
+    "chai-as-promised": "^7.1.1",
+    "gulp": "^4.0.0",
+    "gulp-babel": "^8.0.0-beta.2",
+    "gulp-concat": "^2.6.1",
+    "gulp-ignore": "^2.0.2",
+    "gulp-rename": "^1.3.0",
+    "gulp-sourcemaps": "2.6.4",
+    "gulp-uglify": "^3.0.0",
+    "mocha": "^5.2.0"
   },
   "gulp": {
-    "name": "index",
     "source": {
       "js": [
         "./src/index.js"
@@ -70,6 +69,33 @@
     },
     "dest": {
       "js": "./scripts"
+    },
+    "babel": {
+      "generatorOpts": {
+        "compact": true,
+        "quotes": "double",
+        "sourceMaps": true
+      },
+      "presets": [
+        [
+          "@babel/env",
+          {
+            "modules": false,
+            "targets": {
+              "chrome": 30
+            },
+            "useBuiltIns": false,
+            "forceAllTransforms": true
+          }
+        ]
+      ],
+      "plugins": [
+        "syntax-async-functions",
+        "@babel/syntax-async-generators",
+        "transform-async-generator-functions",
+        "@babel/transform-regenerator",
+        "@babel/plugin-proposal-object-rest-spread"
+      ]
     }
   }
 }
