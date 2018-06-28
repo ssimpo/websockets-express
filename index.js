@@ -37,6 +37,11 @@ function websocketMiddleware(req, res, next) {
 	}
 
 	res.websocket((client, app)=>{
+		client.id = bolt.randomString();
+		app.getWebsocketClient = id=>{
+			return bolt.makeArray((app.wss || {}).clients).find(client=>(client.id === id));
+		};
+
 		client.on('message', rawData=>{
 			let message, type;
 			if (typeof rawData === 'string') {
@@ -64,7 +69,7 @@ function websocketMiddleware(req, res, next) {
 						'Content-Length': _getContentLength(message.data.body)
 					});
 
-					let _req = new Request(req, message.data, messageId);
+					let _req = new Request(req, message.data, messageId, client.id);
 					let _res = new Response(_req, client, message.id, type);
 
 					app.handle(_req, _res);
@@ -77,6 +82,7 @@ function websocketMiddleware(req, res, next) {
 function upgrade(server, app) {
 	const wss = new ws.Server({ noServer: true });
 	server.on('upgrade', handleUpgrade(app, wss));
+	return wss;
 }
 
 module.exports = {
