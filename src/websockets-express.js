@@ -21,6 +21,12 @@
 		CONNECTED: 4
 	});
 
+	class HTTP_ERROR extends Error {
+		constructor(message, ...params) {
+			super(message.message,...params);
+			this.status = message.status;
+		}
+	}
 
 	/**
 	 * Initiate this module, binding into all the correct global and framework points.
@@ -140,8 +146,9 @@
 			if (err) return reject(err);
 			if ((response.status || 200) >= 400) {
 				if (err) return reject(err);
-				let errMessage = (response.statusMessage || "").trim();
-				return reject(errMessage);
+				const message = (response.body || response.statusMessage || "").trim();
+				const status = (response.status || 400);
+				return reject(new HTTP_ERROR({message, status}));
 			}
 			return resolve(response);
 		};
