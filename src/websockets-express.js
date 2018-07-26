@@ -1,4 +1,4 @@
-(function(global, $){
+(function(global){
 	'use strict';
 
 	let buffer = global.buffer;
@@ -32,16 +32,37 @@
 	 * Initiate this module, binding into all the correct global and framework points.
 	 */
 	function init() {
-		global.document.addEventListener("DOMContentLoaded", onReady);
-		if ($) $.websocket = new WebSocketService();
-		if (global.angular) global.angular.module("websocket-express", []).factory("$websocket", ()=>new WebSocketService());
+		const {
+			jQuery=((!!global.$ && !!global.$.jQuery)?global.$:undefined),
+			angular,
+			bolt,
+			document:doc
+		} = global;
 
-		if (!$ && !global.angular) {
-			if (global.bolt) {
-				global.bolt.WebSocketService = WebSocketService;
-			} else {
-				global.BoltWebSocketService = WebSocketService;
+		if (!!jQuery) global.jQuery.websocket = new WebSocketService();
+		if (!!angular) angular.module("websocket-express", []).factory("$websocket", ()=>new WebSocketService());
+		if (!!bolt) {
+			bolt.WebSocketService = WebSocketService;
+			if (!!bolt.MODE && (bolt.MODE.has("DEVELOPMENT") || bolt.MODE.has("DEBUG"))) {
+				bolt.WebSocketService.DEBUG = true;
 			}
+		}
+
+		if (!!bolt && !!jQuery && !!angular) global.BoltWebSocketService = WebSocketService;
+
+		// This is extracted from jQuery.ready(), we want the works in all situations provided by jQuery without
+		// the jQuery dependency. (@see https://github.com/jquery/jquery/blob/master/src/core/ready.js).
+		function completed() {
+			document.removeEventListener("DOMContentLoaded", completed);
+			window.removeEventListener("load", completed);
+			onReady();
+		}
+
+		if (doc.readyState==="complete" || (doc.readyState !=="loading" && !doc.documentElement.doScroll)) {
+			window.setTimeout(onReady);
+		} else {
+			document.addEventListener( "DOMContentLoaded", completed );
+			window.addEventListener( "load", completed );
 		}
 	}
 
@@ -53,48 +74,6 @@
 		ready = true;
 		afterReady.forEach(callback=>callback());
 		afterReady.clear();
-		global.document.removeEventListener("DOMContentLoaded", init);
-	}
-
-
-	/**
-	 * Search through all the locations for websocket endpoint definitions setting these.  Will use defaults if non
-	 * found. These can be defined in <link rel="websocket-endpoint"> tags, where the title attribute is the endpoint
-	 * name and the href is the endpoint.
-	 */
-	function setEndpoints() {
-		setDefaultEndPoint();
-
-		let endpointLinkElements = global.document.querySelectorAll("link[rel=websocket-endpoint][href]");
-		if (endpointLinkElements.length) {
-			for (let n=0; n < endpointLinkElements.length; n++) {
-				let url = (endpointLinkElements[n].getAttribute("href") || "").trim();
-				if (url !== "") {
-					let title = (endpointLinkElements[n].getAttribute("title") || "").trim();
-					if (title === "") title = defaultSocketId;
-					endpoints.set(title, url);
-				}
-			}
-		}
-	}
-
-	/**
-	 * Set the endpoint of the default endpoint, searching all the definition points for this.
-	 */
-	function setDefaultEndPoint() {
-		let origin = global.location.origin;
-		let baseElement = global.document.querySelector("base[href]");
-		let url;
-		if (baseElement) {
-			let base = (baseElement.getAttribute("href") || "").trim().replace(origin, "");
-			if (base !== "") url = origin+base;
-		} else {
-			url = origin+'/';
-		}
-
-		url = url.replace("https://", "wss://").replace("http://", "ws://");
-
-		endpoints.set(defaultSocketId, url);
 	}
 
 	/**
@@ -132,6 +111,47 @@
 	 */
 	function randomString(length=32) {
 		return (new Array(length)).fill(0).map(()=>chars[randomInt(chars.length - 1)]).join('');
+	}
+
+	/**
+	 * Search through all the locations for websocket endpoint definitions setting these.  Will use defaults if non
+	 * found. These can be defined in <link rel="websocket-endpoint"> tags, where the title attribute is the endpoint
+	 * name and the href is the endpoint.
+	 */
+	function setEndpoints() {
+		setDefaultEndPoint();
+
+		let endpointLinkElements = global.document.querySelectorAll("link[rel=websocket-endpoint][href]");
+		if (endpointLinkElements.length) {
+			for (let n=0; n < endpointLinkElements.length; n++) {
+				let url = (endpointLinkElements[n].getAttribute("href") || "").trim();
+				if (url !== "") {
+					let title = (endpointLinkElements[n].getAttribute("title") || "").trim();
+					if (title === "") title = defaultSocketId;
+					endpoints.set(title, url);
+				}
+			}
+		}
+	}
+
+	/**
+	 * Set the endpoint of the default endpoint, searching all the definition points for this.
+	 */
+	function setDefaultEndPoint() {
+		const [origin, baseElement] = [global.location.origin, global.document.querySelector("base[href]")];
+		let url;
+		if (baseElement) {
+			const base = (baseElement.getAttribute("href") || "").trim().replace(origin, "");
+			if (base !== "") url = `${origin}${base}`;
+		} else {
+			url = `${origin}/`;
+		}
+
+		url = url
+			.replace("https://", "wss://")
+			.replace("http://", "ws://");
+
+		endpoints.set(defaultSocketId, url);
 	}
 
 	/**
@@ -248,7 +268,7 @@
 		setTimeout(()=>{
 			if (notEnum(status.get(socketId), SOCKETSTATUS, ['CONNECTING', 'RECONNECTING', 'CONNECTED'])) {
 				status.set(socketId, SOCKETSTATUS.RECONNECTING);
-				console.log("Trying reconnect");
+				if (!!WebSocketService.DEBUG) console.log("Trying reconnect");
 				sockets.set(socketId, new WebSocket(url));
 				connecting(sockets.get(socketId), url, socketId);
 			}
@@ -272,7 +292,7 @@
 		 */
 		function open() {
 			status.set(socketId, SOCKETSTATUS.CONNECTED);
-			console.log(`Opened ${url} for ${socketId}`);
+			if (!!WebSocketService.DEBUG) console.log(`Opened ${url} for ${socketId}`);
 			ws.addEventListener("close", close);
 			ws.addEventListener("message", message);
 			runSendQueue(socketId);
@@ -283,7 +303,7 @@
 		 */
 		function close() {
 			status.set(socketId, SOCKETSTATUS.CLOSED);
-			console.log(`Closed ${url} for ${socketId}`);
+			if (!!WebSocketService.DEBUG) console.log(`Closed ${url} for ${socketId}`);
 			ws.removeEventListener("open", open);
 			ws.removeEventListener("close", message);
 			ws.removeEventListener("message", message);
@@ -377,6 +397,7 @@
 	 */
 	class WebSocketService {
 		constructor() {
+			// Singleton pattern
 			if (!WebSocketServiceInstance) WebSocketServiceInstance = this;
 			this.addParser("json", defaultJsonParser);
 			return WebSocketServiceInstance;
@@ -526,5 +547,7 @@
 		}
 	}
 
+	WebSocketService.DEBUG = false;
+
 	init();
-})(window, window.jQuery);
+})(window);
