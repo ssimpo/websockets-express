@@ -1,6 +1,6 @@
 {
   "name": "@simpo/websocket-express",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "description": "",
   "main": "./index.js",
   "browser": "./umd/websocket-express.production.min.js",
