@@ -1,6 +1,4 @@
-'use strict';
-
-const util = require('./util');
+import {unique, flatten} from './util';
 
 const ignoreHeaders = ['upgrade', 'sec-websocket-key', 'sec-websocket-version', 'sec-websocket-extensions'];
 const addHeaders = {
@@ -25,10 +23,10 @@ function excludeHeader(header) {
  * @param {Object} message				The associated websocket message.
  * @returns {Array.<string>}			The rawHeaders array.
  */
-function rawHeadersFactory(req, message) {
+export function rawHeadersFactory(req, message) {
 	let filterNext = false;
 
-	return util.flatten(...Object.keys(addHeaders).map(headerName=>[headerName, addHeaders[headerName]])).concat(
+	return flatten(...Object.keys(addHeaders).map(headerName=>[headerName, addHeaders[headerName]])).concat(
 		req.rawHeaders.map(header=>{
 			if (!filterNext && !excludeHeader(header)) return header;
 			filterNext = !filterNext;
@@ -36,7 +34,7 @@ function rawHeadersFactory(req, message) {
 			header=>header
 		)
 	).concat(
-		util.flatten(...Object.keys(message.headers).map(headerName=>[headerName, message.headers[headerName]])).map(header=>{
+		flatten(...Object.keys(message.headers).map(headerName=>[headerName, message.headers[headerName]])).map(header=>{
 			if (!filterNext && !excludeHeader(header)) return header;
 			filterNext = !filterNext;
 		}).filter(
@@ -52,7 +50,7 @@ function rawHeadersFactory(req, message) {
  * @param {Object} message				The associated websocket message.
  * @returns {Proxy}						Headers object.
  */
-function requestHeadersFactory(req, message) {
+export function requestHeadersFactory(req, message) {
 	let headers = {};
 
 	Object.keys(req.headers).forEach(_header=>{
@@ -90,12 +88,7 @@ function requestHeadersFactory(req, message) {
 
 		ownKeys(target) {
 			let reqHeaders = Reflect.ownKeys(req.headers).filter(header=>!ignoreHeaders.includes(header));
-			return util.unique(Reflect.ownKeys(target).concat(reqHeaders));
+			return unique(Reflect.ownKeys(target).concat(reqHeaders));
 		}
 	});
 }
-
-module.exports = {
-	rawHeadersFactory,
-	requestHeadersFactory
-};

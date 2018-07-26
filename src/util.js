@@ -1,66 +1,43 @@
-'use strict';
+import {isObject, isString, isNumber, isBoolean, uniq as unique, flatten} from 'lodash-es';
+
+const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXTZabcdefghiklmnopqrstuvwxyz'.split('');
+
 
 /**
- * Is the given value and object? This is searching for standard object types that are not object versions of natives,
- * null or arrays.
+ * Generate a random integer between a start end end value.
  *
- * @param {*} value			Value to test.
- * @returns {boolean}		Is it an object?
+ * @param {integer} end				The start of the range.
+ * @param {integer} [start=0]		The end of the range.
+ * @returns {integer}				Random generated number.
  */
-function isObject(value) {
-	return ((value !== null) && (typeof value === 'object') && !isString(value) && !isNumber(value) && Array.isArray(value));
+export function randomInt(end, start=0) {
+	return Math.floor(Math.random() * end) + start;
 }
 
 /**
- * Test if given value is a string.
+ * Generate a randomstring.
  *
- * @param {*} value			Value to test.
- * @returns {boolean}		Is value a string?
+ * @param {integer} [length=32]		The length of string to generate.
+ * @returns {string}				Random generated string.
  */
-function isString(value) {
-	return ((typeof value === 'string') || (value instanceof String));
+export function randomString(length=32) {
+	return (new Array(length)).fill(0).map(()=>chars[randomInt(chars.length - 1)]).join('');
 }
 
 /**
- * Test if given value is a number.
+ * Get the length of a message object. Used to fake the content-length header in socket.io routes.
  *
- * @note This is not the same as testing if a string is a numeric value.
- *
- * @param {*} value			Value to test.
- * @returns {boolean}		Is value a number?
+ * @private
+ * @param {*} message     Message to get length of.  This is assumed to be an object.
+ * @returns {number}      Message length.
  */
-function isNumber(value) {
-	return ((typeof value === 'number') || (value instanceof Number));
-}
+export function getContentLength(message) {
+	try {
+		if (isObject(message)) return JSON.stringify(message || {}).length.toString();
+		return message.toString().length.toString();
+	} catch(err) {}
 
-/**
- * Test if given value is a boolean.
- *
- * @param {*} value			Value to test.
- * @returns {boolean}		Is the value a boolean?
- */
-function isBoolean(value) {
-	return ((typeof value === 'boolean') || (value instanceof Boolean));
-}
-
-/**
- * Return an array with duplicated items removed.  Will return a new array.
- *
- * @param {Array} ary		Array to return unique items of.
- * @returns {Array}			New array of unique items.
- */
-function unique(ary) {
-	return [...new Set(makeArray(ary))];
-}
-
-/**
- * Flatten an array, reducing each sub-array's items to the parent array. Will return a new array.
- *
- * @param {Array} ary		Array to flatten.
- * @returns {Array}			Flattened array.
- */
-function flatten(...ary) {
-	return ary.reduce((a, b)=>a.concat(b), []);
+	return "1";
 }
 
 /**
@@ -71,7 +48,7 @@ function flatten(...ary) {
  * @param {*} value									The property value to set.
  * @returns {Object}								The the instance for chaining purposes.
  */
-function definePropertyFixed(instance, propertyName, value) {
+export function definePropertyFixed(instance, propertyName, value) {
 	makeArray(propertyName).forEach((_propertyName, n)=>Object.defineProperty(instance, _propertyName, {
 		configurable: false,
 		enumerable: true,
@@ -91,7 +68,7 @@ function definePropertyFixed(instance, propertyName, value) {
  * @param {boolean} [configurable=false]			Is this going to set the configurable property?
  * @returns {Object}								The the instance for chaining purposes.
  */
-function defineProperty(instance, propertyName, value, configurable=false) {
+export function defineProperty(instance, propertyName, value, configurable=false) {
 	makeArray(propertyName).forEach((_propertyName, n)=>Object.defineProperty(instance, _propertyName, {
 		configurable,
 		enumerable: true,
@@ -110,7 +87,7 @@ function defineProperty(instance, propertyName, value, configurable=false) {
  * @param {Array} methods			Methods to bind.
  * @returns {Object}				The takeFrom object for chaining.
  */
-function rebinder(takeFrom, bindTo, methods) {
+export function rebinder(takeFrom, bindTo, methods) {
 	makeArray(methods.methods).forEach(method=>{
 		bindTo[method] = takeFrom[method].bind(bindTo);
 	});
@@ -132,12 +109,15 @@ function rebinder(takeFrom, bindTo, methods) {
  * @param {Array|Set|*} value		Value to return or convert.
  * @returns {Array}					The converted value (or original if already an array).
  */
-function makeArray(value) {
+export function makeArray(value) {
 	if (value === undefined) return [];
 	if (value instanceof Set) return [...value];
-	return (Array.isArray(value)?value:[value]);
+	return (Array.isArray(value) ? value : [value]);
 }
 
-module.exports = {
-	isObject, isNumber, isBoolean, isString, unique, flatten, definePropertyFixed, defineProperty, rebinder, makeArray
-};
+export {isObject};
+export {isString};
+export {isNumber};
+export {isBoolean};
+export {unique};
+export {flatten};

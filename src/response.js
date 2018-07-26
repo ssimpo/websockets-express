@@ -1,15 +1,15 @@
-'use strict';
+import {isObject, defineProperty, rebinder, definePropertyFixed} from './util';
+import mime from 'mime';
+import vary from 'vary';
+import depd from 'depd';
+import contentDisposition from 'content-disposition';
+import statuses from 'statuses';
 
-const util = require('./util');
-const mime = require('mime');
-const vary = require('vary');
-const deprecate = require('depd')('express');
-const contentDisposition = require('content-disposition');
-const statuses = require('statuses');
-
+const deprecate = depd('express');
 const clients = new WeakMap();
 const messageIdIds = new WeakMap();
 const messageRecieveType = new WeakMap();
+
 
 /**
  * Create a new message as a response from given WebsocketResponse and body object.
@@ -306,7 +306,7 @@ const WebsocketResponseAbstract = {
 	 */
 	set: function(field, value) {
 		const headers = this.headers;
-		if (util.isObject(field)) {
+		if (isObject(field)) {
 			Object.keys(field).forEach(header=>{
 				headers[header] = field[header];
 			});
@@ -383,21 +383,19 @@ const WebsocketResponseAbstract = {
 	}
 };
 
-class WebsocketResponse {
+export class WebsocketResponse {
 	constructor(req, client, messageId, type) {
-		util.defineProperty(this, ['headers', 'headersSent', 'statusCode', 'statusMessage'], [{}, false, 200, 'Ok']);
-		util.definePropertyFixed(
+		defineProperty(this, ['headers', 'headersSent', 'statusCode', 'statusMessage'], [{}, false, 200, 'Ok']);
+		definePropertyFixed(
 			this,
 			['locals', 'req', 'app', 'websocketClient'],
 			[{}, req, req.app, client]
 		);
 
-		util.rebinder(WebsocketResponseAbstract, this, {methods: Object.keys(WebsocketResponseAbstract)});
+		rebinder(WebsocketResponseAbstract, this, {methods: Object.keys(WebsocketResponseAbstract)});
 
 		clients.set(this, client);
 		messageIdIds.set(this, messageId);
 		messageRecieveType.set(this, type)
 	}
 }
-
-module.exports = WebsocketResponse;
