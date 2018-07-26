@@ -4,6 +4,20 @@
   (factory());
 }(this, (function () { 'use strict';
 
+  function _typeof(obj) {
+    if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") {
+      _typeof = function (obj) {
+        return typeof obj;
+      };
+    } else {
+      _typeof = function (obj) {
+        return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;
+      };
+    }
+
+    return _typeof(obj);
+  }
+
   function _classCallCheck(instance, Constructor) {
     if (!(instance instanceof Constructor)) {
       throw new TypeError("Cannot call a class as a function");
@@ -147,33 +161,35 @@
    */
 
   /** Detect free variable `global` from Node.js. */
-  var freeGlobal = typeof global == 'object' && global && global.Object === Object && global;
+  var freeGlobal = (typeof global === "undefined" ? "undefined" : _typeof(global)) == 'object' && global && global.Object === Object && global;
 
   /** Detect free variable `self`. */
-  var freeSelf = typeof self == 'object' && self && self.Object === Object && self;
 
+  var freeSelf = (typeof self === "undefined" ? "undefined" : _typeof(self)) == 'object' && self && self.Object === Object && self;
   /** Used as a reference to the global object. */
+
   var root = freeGlobal || freeSelf || Function('return this')();
 
   /** Built-in value references. */
-  var Symbol$1 = root.Symbol;
+
+  var _Symbol = root.Symbol;
 
   /** Used for built-in method references. */
+
   var objectProto = Object.prototype;
-
   /** Used to check objects for own properties. */
-  var hasOwnProperty = objectProto.hasOwnProperty;
 
+  var hasOwnProperty = objectProto.hasOwnProperty;
   /**
    * Used to resolve the
    * [`toStringTag`](http://ecma-international.org/ecma-262/7.0/#sec-object.prototype.tostring)
    * of values.
    */
+
   var nativeObjectToString = objectProto.toString;
-
   /** Built-in value references. */
-  var symToStringTag = Symbol$1 ? Symbol$1.toStringTag : undefined;
 
+  var symToStringTag = _Symbol ? _Symbol.toStringTag : undefined;
   /**
    * A specialized version of `baseGetTag` which ignores `Symbol.toStringTag` values.
    *
@@ -181,6 +197,7 @@
    * @param {*} value The value to query.
    * @returns {string} Returns the raw `toStringTag`.
    */
+
   function getRawTag(value) {
     var isOwn = hasOwnProperty.call(value, symToStringTag),
         tag = value[symToStringTag];
@@ -190,6 +207,7 @@
     } catch (e) {}
 
     var result = nativeObjectToString.call(value);
+
     {
       if (isOwn) {
         value[symToStringTag] = tag;
@@ -197,19 +215,19 @@
         delete value[symToStringTag];
       }
     }
+
     return result;
   }
 
   /** Used for built-in method references. */
   var objectProto$1 = Object.prototype;
-
   /**
    * Used to resolve the
    * [`toStringTag`](http://ecma-international.org/ecma-262/7.0/#sec-object.prototype.tostring)
    * of values.
    */
-  var nativeObjectToString$1 = objectProto$1.toString;
 
+  var nativeObjectToString$1 = objectProto$1.toString;
   /**
    * Converts `value` to a string using `Object.prototype.toString`.
    *
@@ -217,17 +235,18 @@
    * @param {*} value The value to convert.
    * @returns {string} Returns the converted string.
    */
+
   function objectToString(value) {
     return nativeObjectToString$1.call(value);
   }
 
   /** `Object#toString` result references. */
+
   var nullTag = '[object Null]',
       undefinedTag = '[object Undefined]';
-
   /** Built-in value references. */
-  var symToStringTag$1 = Symbol$1 ? Symbol$1.toStringTag : undefined;
 
+  var symToStringTag$1 = _Symbol ? _Symbol.toStringTag : undefined;
   /**
    * The base implementation of `getTag` without fallbacks for buggy environments.
    *
@@ -235,13 +254,13 @@
    * @param {*} value The value to query.
    * @returns {string} Returns the `toStringTag`.
    */
+
   function baseGetTag(value) {
     if (value == null) {
       return value === undefined ? undefinedTag : nullTag;
     }
-    return (symToStringTag$1 && symToStringTag$1 in Object(value))
-      ? getRawTag(value)
-      : objectToString(value);
+
+    return symToStringTag$1 && symToStringTag$1 in Object(value) ? getRawTag(value) : objectToString(value);
   }
 
   /**
@@ -269,12 +288,12 @@
    * // => false
    */
   function isObjectLike(value) {
-    return value != null && typeof value == 'object';
+    return value != null && _typeof(value) == 'object';
   }
 
   /** `Object#toString` result references. */
-  var argsTag = '[object Arguments]';
 
+  var argsTag = '[object Arguments]';
   /**
    * The base implementation of `_.isArguments`.
    *
@@ -282,19 +301,20 @@
    * @param {*} value The value to check.
    * @returns {boolean} Returns `true` if `value` is an `arguments` object,
    */
+
   function baseIsArguments(value) {
     return isObjectLike(value) && baseGetTag(value) == argsTag;
   }
 
   /** Used for built-in method references. */
+
   var objectProto$2 = Object.prototype;
-
   /** Used to check objects for own properties. */
+
   var hasOwnProperty$1 = objectProto$2.hasOwnProperty;
-
   /** Built-in value references. */
-  var propertyIsEnumerable = objectProto$2.propertyIsEnumerable;
 
+  var propertyIsEnumerable = objectProto$2.propertyIsEnumerable;
   /**
    * Checks if `value` is likely an `arguments` object.
    *
@@ -313,9 +333,11 @@
    * _.isArguments([1, 2, 3]);
    * // => false
    */
-  var isArguments = baseIsArguments(function() { return arguments; }()) ? baseIsArguments : function(value) {
-    return isObjectLike(value) && hasOwnProperty$1.call(value, 'callee') &&
-      !propertyIsEnumerable.call(value, 'callee');
+
+  var isArguments = baseIsArguments(function () {
+    return arguments;
+  }()) ? baseIsArguments : function (value) {
+    return isObjectLike(value) && hasOwnProperty$1.call(value, 'callee') && !propertyIsEnumerable.call(value, 'callee');
   };
 
   /**
@@ -343,7 +365,8 @@
    */
 
   /** Built-in value references. */
-  var spreadableSymbol = Symbol$1 ? Symbol$1.isConcatSpreadable : undefined;
+
+  var spreadableSymbol = _Symbol ? _Symbol.isConcatSpreadable : undefined;
 
   /**
    * Checks if `value` is the
@@ -371,16 +394,17 @@
    * // => false
    */
   function isObject(value) {
-    var type = typeof value;
+    var type = _typeof(value);
+
     return value != null && (type == 'object' || type == 'function');
   }
 
   /** `Object#toString` result references. */
+
   var asyncTag = '[object AsyncFunction]',
       funcTag = '[object Function]',
       genTag = '[object GeneratorFunction]',
       proxyTag = '[object Proxy]';
-
   /**
    * Checks if `value` is classified as a `Function` object.
    *
@@ -398,25 +422,28 @@
    * _.isFunction(/abc/);
    * // => false
    */
+
   function isFunction(value) {
     if (!isObject(value)) {
       return false;
-    }
-    // The use of `Object#toString` avoids issues with the `typeof` operator
+    } // The use of `Object#toString` avoids issues with the `typeof` operator
     // in Safari 9 which returns 'object' for typed arrays and other constructors.
+
+
     var tag = baseGetTag(value);
     return tag == funcTag || tag == genTag || tag == asyncTag || tag == proxyTag;
   }
 
   /** Used to detect overreaching core-js shims. */
+
   var coreJsData = root['__core-js_shared__'];
 
   /** Used to detect methods masquerading as native. */
-  var maskSrcKey = (function() {
-    var uid = /[^.]+$/.exec(coreJsData && coreJsData.keys && coreJsData.keys.IE_PROTO || '');
-    return uid ? ('Symbol(src)_1.' + uid) : '';
-  }());
 
+  var maskSrcKey = function () {
+    var uid = /[^.]+$/.exec(coreJsData && coreJsData.keys && coreJsData.keys.IE_PROTO || '');
+    return uid ? 'Symbol(src)_1.' + uid : '';
+  }();
   /**
    * Checks if `func` has its source masked.
    *
@@ -424,16 +451,17 @@
    * @param {Function} func The function to check.
    * @returns {boolean} Returns `true` if `func` is masked, else `false`.
    */
+
+
   function isMasked(func) {
-    return !!maskSrcKey && (maskSrcKey in func);
+    return !!maskSrcKey && maskSrcKey in func;
   }
 
   /** Used for built-in method references. */
   var funcProto = Function.prototype;
-
   /** Used to resolve the decompiled source of functions. */
-  var funcToString = funcProto.toString;
 
+  var funcToString = funcProto.toString;
   /**
    * Converts `func` to its source code.
    *
@@ -441,15 +469,18 @@
    * @param {Function} func The function to convert.
    * @returns {string} Returns the source code.
    */
+
   function toSource(func) {
     if (func != null) {
       try {
         return funcToString.call(func);
       } catch (e) {}
+
       try {
-        return (func + '');
+        return func + '';
       } catch (e) {}
     }
+
     return '';
   }
 
@@ -457,27 +488,24 @@
    * Used to match `RegExp`
    * [syntax characters](http://ecma-international.org/ecma-262/7.0/#sec-patterns).
    */
+
   var reRegExpChar = /[\\^$.*+?()[\]{}|]/g;
-
   /** Used to detect host constructors (Safari). */
-  var reIsHostCtor = /^\[object .+?Constructor\]$/;
 
+  var reIsHostCtor = /^\[object .+?Constructor\]$/;
   /** Used for built-in method references. */
+
   var funcProto$1 = Function.prototype,
       objectProto$3 = Object.prototype;
-
   /** Used to resolve the decompiled source of functions. */
+
   var funcToString$1 = funcProto$1.toString;
-
   /** Used to check objects for own properties. */
+
   var hasOwnProperty$2 = objectProto$3.hasOwnProperty;
-
   /** Used to detect if a method is native. */
-  var reIsNative = RegExp('^' +
-    funcToString$1.call(hasOwnProperty$2).replace(reRegExpChar, '\\$&')
-    .replace(/hasOwnProperty|(function).*?(?=\\\()| for .+?(?=\\\])/g, '$1.*?') + '$'
-  );
 
+  var reIsNative = RegExp('^' + funcToString$1.call(hasOwnProperty$2).replace(reRegExpChar, '\\$&').replace(/hasOwnProperty|(function).*?(?=\\\()| for .+?(?=\\\])/g, '$1.*?') + '$');
   /**
    * The base implementation of `_.isNative` without bad shim checks.
    *
@@ -486,10 +514,12 @@
    * @returns {boolean} Returns `true` if `value` is a native function,
    *  else `false`.
    */
+
   function baseIsNative(value) {
     if (!isObject(value) || isMasked(value)) {
       return false;
     }
+
     var pattern = isFunction(value) ? reIsNative : reIsHostCtor;
     return pattern.test(toSource(value));
   }
@@ -514,12 +544,14 @@
    * @param {string} key The key of the method to get.
    * @returns {*} Returns the function if it's native, else `undefined`.
    */
+
   function getNative(object, key) {
     var value = getValue(object, key);
     return baseIsNative(value) ? value : undefined;
   }
 
   /* Built-in method references that are verified to be native. */
+
   var nativeCreate = getNative(Object, 'create');
 
   /**
@@ -575,15 +607,8 @@
    */
 
   /* Built-in method references that are verified to be native. */
-  var Map$1 = getNative(root, 'Map');
 
-  /**
-   * Checks if `value` is suitable for use as unique object key.
-   *
-   * @private
-   * @param {*} value The value to check.
-   * @returns {boolean} Returns `true` if `value` is suitable, else `false`.
-   */
+  var Map$1 = getNative(root, 'Map');
 
   /** Used to stand-in for `undefined` hash values. */
 
@@ -648,6 +673,7 @@
    */
 
   /* Built-in method references that are verified to be native. */
+
   var Set$1 = getNative(root, 'Set');
 
   /**
@@ -662,8 +688,7 @@
    * _.times(2, _.noop);
    * // => [undefined, undefined]
    */
-  function noop() {
-    // No operation performed.
+  function noop() {// No operation performed.
   }
 
   /**
@@ -676,16 +701,15 @@
   function setToArray(set) {
     var index = -1,
         result = Array(set.size);
-
-    set.forEach(function(value) {
+    set.forEach(function (value) {
       result[++index] = value;
     });
     return result;
   }
 
   /** Used as references for various `Number` constants. */
-  var INFINITY = 1 / 0;
 
+  var INFINITY = 1 / 0;
   /**
    * Creates a set object of `values`.
    *
@@ -693,7 +717,8 @@
    * @param {Array} values The values to add to the set.
    * @returns {Object} Returns the new set.
    */
-  var createSet = !(Set$1 && (1 / setToArray(new Set$1([,-0]))[1]) == INFINITY) ? noop : function(values) {
+
+  var createSet = !(Set$1 && 1 / setToArray(new Set$1([, -0]))[1] == INFINITY) ? noop : function (values) {
     return new Set$1(values);
   };
 
@@ -816,12 +841,8 @@
   function onReady() {
     setEndpoints();
 
-    if (!!window.BSON) {
-      bson = new BSON();
-
-      if (!!WebSocketServiceInstance) {
-        WebSocketServiceInstance.addSerializer("bson", defaultBsonSerializer).addDeserializer("bson", defaultBsonDeserializer);
-      }
+    if (!!window.BSON && !!WebSocketServiceInstance) {
+      WebSocketServiceInstance.addSerializer("bson", defaultBsonSerializer).addDeserializer("bson", defaultBsonDeserializer);
     }
 
     ready = true;
@@ -1229,7 +1250,6 @@
 
       if (!WebSocketServiceInstance) WebSocketServiceInstance = this;
       this.addSerializer("json", defaultJsonSerializer).addDeserializer("json", defaultJsonDeserializer);
-      if (!!bson) this.addSerializer("bson", defaultBsonSerializer).addDeserializer("bson", defaultBsonDeserializer);
       return WebSocketServiceInstance;
     }
     /**

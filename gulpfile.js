@@ -3,7 +3,6 @@
 const settings = loadSettings();
 const gulp = require('gulp');
 const sourcemaps = require('gulp-sourcemaps');
-const uglify = require('gulp-uglify');
 const uglifyEs = require('gulp-uglify-es').default;
 const rename = require('gulp-rename');
 const ignore = require('gulp-ignore');
@@ -13,6 +12,8 @@ const rollupNodeResolve = require('rollup-plugin-node-resolve');
 const rollupPluginCommonjs = require('rollup-plugin-commonjs');
 const rollupBabel = require('rollup-plugin-babel');
 const rollupPluginJson = require('rollup-plugin-json');
+const rollupNodeBuiltins = require('rollup-plugin-node-builtins');
+const rollupNodeGlobals = require('rollup-plugin-node-globals');
 
 function loadSettings() {
 	let packageData = require('./package.json');
@@ -38,10 +39,11 @@ function serverBuild(done) {
 			input: settings.source.server,
 			plugins: [
 				rollupNodeResolve(settings.nodeResolve || {}),
-				rollupPluginCommonjs(),
+				rollupPluginCommonjs({}),
+				rollupNodeGlobals(),
+				rollupNodeBuiltins(),
 				rollupPluginJson(),
 				rollupBabel({
-					exclude: 'node_modules/**',
 					generatorOpts: {...(settings.generatorOpts || {}), quotes:'single'},
 					presets: settings.babelServer.presets || [],
 					externalHelpers: true,
@@ -52,7 +54,6 @@ function serverBuild(done) {
 			external:['ws','type-is','path','events','depd','vary','mime','content-disposition','statuses','http','crypto']
 		},
 		output: {
-			globals: {'text-encoding': 'window'},
 			format: 'cjs',
 			'name': 'WebSocketService',
 			sourcemap: true
@@ -77,17 +78,18 @@ function serverBuild(done) {
 		.on('end', done);
 }
 
-function browserBuild(done) {
+function browserBsonBuild(done) {
 	rollupVinylAdaptor({
 		rollup,
 		input: {
-			input: settings.source.browser,
+			input: settings.source.browserBson,
 			plugins: [
 				rollupNodeResolve(settings.nodeResolve || {}),
-				rollupPluginCommonjs(),
+				rollupPluginCommonjs({}),
+				rollupNodeGlobals(),
+				rollupNodeBuiltins(),
 				rollupPluginJson(),
 				rollupBabel({
-					exclude: 'node_modules/**',
 					generatorOpts: {...(settings.generatorOpts || {}), quotes:'double'},
 					presets: settings.babelBrowser.presets || [],
 					externalHelpers: true,
@@ -97,7 +99,49 @@ function browserBuild(done) {
 			]
 		},
 		output: {
-			globals: {'text-encoding': 'window'},
+			format: 'umd',
+			'name': 'BSON',
+			sourcemap: true
+		}
+	})
+		.pipe(sourcemaps.init({loadMaps: true}))
+		.pipe(rename(path=>{
+			path.dirname = '';
+			path.basename = 'bson';
+			path.extname = '.development.js';
+		}))
+		.pipe(sourcemaps.write('./'))
+		.pipe(gulp.dest(settings.dest.browser))
+		.pipe(ignore.exclude('*.map'))
+		.pipe(uglifyEs({}))
+		.pipe(rename(path=>{
+			path.basename = 'bson';
+			path.extname = '.production.min.js';
+		}))
+		.pipe(sourcemaps.write('./'))
+		.pipe(gulp.dest(settings.dest.browser))
+		.on('end', done);
+}
+
+function browserBuild(done) {
+	rollupVinylAdaptor({
+		rollup,
+		input: {
+			input: settings.source.browser,
+			plugins: [
+				rollupNodeResolve(settings.nodeResolve || {}),
+				rollupPluginCommonjs({include: './node_modules/**'}),
+				rollupPluginJson(),
+				rollupBabel({
+					generatorOpts: {...(settings.generatorOpts || {}), quotes:'double'},
+					presets: settings.babelBrowser.presets || [],
+					externalHelpers: true,
+					sourceMaps: true,
+					plugins: ['@babel/plugin-external-helpers', 'lodash', ...settings.babelBrowser.plugins || []]
+				})
+			]
+		},
+		output: {
 			format: 'umd',
 			'name': 'WebSocketService',
 			sourcemap: true
@@ -112,7 +156,7 @@ function browserBuild(done) {
 		.pipe(sourcemaps.write('./'))
 		.pipe(gulp.dest(settings.dest.browser))
 		.pipe(ignore.exclude('*.map'))
-		.pipe(uglify())
+		.pipe(uglifyEs({}))
 		.pipe(rename(path=>{
 			path.basename = 'websocket-express';
 			path.extname = '.production.min.js';
@@ -123,7 +167,7 @@ function browserBuild(done) {
 }
 
 gulp.task('minify', done=>{
-	const actions = [serverBuild, browserBuild];
+	const actions = [serverBuild, browserBuild, browserBsonBuild];
 	let count = actions.length;
 
 	const _done = ()=>{

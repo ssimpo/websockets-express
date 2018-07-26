@@ -71,13 +71,10 @@ function init() {
  */
 function onReady() {
 	setEndpoints();
-	if (!!window.BSON) {
-		bson = new BSON();
-		if (!!WebSocketServiceInstance) {
-			WebSocketServiceInstance
-				.addSerializer("bson", defaultBsonSerializer)
-				.addDeserializer("bson", defaultBsonDeserializer);
-		}
+	if (!!window.BSON && !!WebSocketServiceInstance) {
+		WebSocketServiceInstance
+			.addSerializer("bson", defaultBsonSerializer)
+			.addDeserializer("bson", defaultBsonDeserializer);
 	}
 	ready = true;
 	afterReady.forEach(callback=>callback());
